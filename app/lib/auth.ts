@@ -9,6 +9,13 @@ import { logAuditEvent } from "./audit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  // vinext's middleware and route-handler layers have disagreed on whether a
+  // production request is "secure" (one produced an http:// redirect on a
+  // real HTTPS deployment), which left the two layers writing/reading
+  // differently-prefixed cookie names. Forcing this removes the ambiguity —
+  // App Runner always terminates real TLS in production, and localhost dev
+  // (NODE_ENV !== "production") needs plain cookies since it's plain HTTP.
+  useSecureCookies: process.env.NODE_ENV === "production",
   session: { strategy: "jwt" },
   pages: { signIn: "/admin/login" },
   providers: [
