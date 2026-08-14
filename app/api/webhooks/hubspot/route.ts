@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { getDb } from "../../../../db";
 import { webhookEvents } from "../../../../db/schema";
 import { hubSpotEventKey, HubSpotWebhookEvent, validateHubSpotV3Signature } from "../../../lib/hubspot";
@@ -7,7 +6,7 @@ export async function POST(request: Request) {
   const body = await request.text();
   const signature = request.headers.get("x-hubspot-signature-v3") ?? "";
   const timestamp = request.headers.get("x-hubspot-request-timestamp") ?? "";
-  const secret = String((env as unknown as Record<string, unknown>).HUBSPOT_CLIENT_SECRET ?? "");
+  const secret = process.env.HUBSPOT_CLIENT_SECRET ?? "";
 
   if (!secret) return Response.json({ error: "HubSpot is not configured" }, { status: 503 });
   const valid = await validateHubSpotV3Signature({ secret, method: request.method, uri: request.url, body, timestamp, signature });
