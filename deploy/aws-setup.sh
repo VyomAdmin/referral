@@ -146,6 +146,28 @@ ROLE_ARN=$(aws iam get-role --role-name "$ROLE_NAME" --query 'Role.Arn' --output
 # ---------------------------------------------------------------------------
 # 6. App Runner service (builds from GitHub using apprunner.yaml)
 # ---------------------------------------------------------------------------
+# IMPORTANT: with ConfigurationSource=REPOSITORY, App Runner silently ignores
+# RuntimeEnvironmentVariables/RuntimeEnvironmentSecrets passed via this API call
+# — confirmed empirically (login failed with next-auth's MissingSecret error
+# even though the API call below "succeeded" and echoed the values back).
+# Secrets and env vars for a GitHub-source service MUST be declared directly in
+# apprunner.yaml's run.env / run.secrets blocks, with real ARNs. This script
+# can't edit the repo's apprunner.yaml for you — check now that it contains:
+#
+#   run:
+#     secrets:
+#       - name: DATABASE_URL
+#         value-from: $DATABASE_URL_ARN
+#       - name: AUTH_SECRET
+#         value-from: $AUTH_SECRET_ARN
+#
+# and that those ARNs match what was just printed above, then commit/push
+# that before continuing.
+log "Confirm apprunner.yaml's run.secrets block matches these ARNs before continuing:"
+log "  DATABASE_URL -> $DATABASE_URL_ARN"
+log "  AUTH_SECRET  -> $AUTH_SECRET_ARN"
+read -rp "Press enter once apprunner.yaml is committed and pushed with those ARNs... "
+
 if aws apprunner list-services --region "$AWS_REGION" --query "ServiceSummaryList[?ServiceName=='${APP_NAME}'] | [0].ServiceArn" --output text | grep -q .; then
   log "App Runner service $APP_NAME already exists — update it manually or via 'aws apprunner update-service' if the source config changed."
 else
@@ -160,13 +182,7 @@ else
         \"SourceCodeVersion\": {\"Type\": \"BRANCH\", \"Value\": \"$GITHUB_BRANCH\"},
         \"CodeConfiguration\": {
           \"ConfigurationSource\": \"REPOSITORY\",
-          \"CodeConfigurationValues\": {
-            \"RuntimeEnvironmentSecrets\": {
-              \"DATABASE_URL\": \"$DATABASE_URL_ARN\",
-              \"AUTH_SECRET\": \"$AUTH_SECRET_ARN\",
-              \"HUBSPOT_CLIENT_SECRET\": \"$HUBSPOT_SECRET_ARN\"
-            }
-          }
+          \"CodeConfigurationValues\": {\"Runtime\": \"NODEJS_22\", \"Port\": \"3000\"}
         }
       }
     }" \

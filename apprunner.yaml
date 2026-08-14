@@ -13,3 +13,10 @@ run:
   env:
     - name: NODE_ENV
       value: production
+    - name: AUTH_TRUST_HOST
+      value: "true"
+  secrets:
+    - name: DATABASE_URL
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/DATABASE_URL-xwlrMa
+    - name: AUTH_SECRET
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/AUTH_SECRET-ElRlvu
