@@ -1,10 +1,12 @@
 import { InvalidTracker, StatusTimeline, TrackerHeader } from "../../../components/tracker";
+import { verifyTrackerToken } from "../../../lib/tracker-tokens";
 
 export const metadata = { title: "Track your service" };
 
 export default async function CustomerTrackerPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  if (token !== "demo") return <InvalidTracker />;
+  const match = await verifyTrackerToken(token, "customer");
+  if (!match) return <InvalidTracker />;
 
   return (
     <main className="tracker-page">

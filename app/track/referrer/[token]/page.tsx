@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { InvalidTracker, StatusTimeline, TrackerHeader } from "../../../components/tracker";
+import { verifyTrackerToken } from "../../../lib/tracker-tokens";
 
 export const metadata = { title: "Track your referrals" };
 
@@ -11,7 +12,8 @@ const referrals = [
 
 export default async function ReferrerTrackerPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  if (token !== "demo") return <InvalidTracker />;
+  const match = await verifyTrackerToken(token, "referrer");
+  if (!match) return <InvalidTracker />;
 
   return (
     <main className="tracker-page">

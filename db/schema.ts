@@ -1,12 +1,12 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { boolean, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 const timestamps = {
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`),
 };
 
-export const organizations = sqliteTable("organizations", {
+export const organizations = pgTable("organizations", {
   id: text("id").primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
@@ -16,21 +16,21 @@ export const organizations = sqliteTable("organizations", {
   ...timestamps,
 });
 
-export const campaigns = sqliteTable("campaigns", {
+export const campaigns = pgTable("campaigns", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),
   name: text("name").notNull(),
   state: text("state").notNull(),
-  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  active: boolean("active").notNull().default(true),
   customerOffer: text("customer_offer"),
   referrerRewardCents: integer("referrer_reward_cents").notNull().default(5000),
   serviceMessage: text("service_message").notNull(),
   zipRule: text("zip_rule").notNull(),
-  formSchema: text("form_schema", { mode: "json" }),
+  formSchema: jsonb("form_schema"),
   ...timestamps,
 }, (table) => [uniqueIndex("campaign_org_state_idx").on(table.organizationId, table.state)]);
 
-export const referrers = sqliteTable("referrers", {
+export const referrers = pgTable("referrers", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),
   code: text("code").notNull(),
@@ -42,7 +42,7 @@ export const referrers = sqliteTable("referrers", {
   ...timestamps,
 }, (table) => [uniqueIndex("referrer_org_code_idx").on(table.organizationId, table.code)]);
 
-export const referrals = sqliteTable("referrals", {
+export const referrals = pgTable("referrals", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),
   campaignId: text("campaign_id").notNull().references(() => campaigns.id),
@@ -58,7 +58,7 @@ export const referrals = sqliteTable("referrals", {
   vehicleModel: text("vehicle_model"),
   insuranceProvider: text("insurance_provider"),
   publicStatus: text("public_status").notNull().default("received"),
-  installationCompletedAt: text("installation_completed_at"),
+  installationCompletedAt: timestamp("installation_completed_at", { withTimezone: true }),
   hubspotContactId: text("hubspot_contact_id"),
   hubspotDealId: text("hubspot_deal_id"),
   hubspotStage: text("hubspot_stage"),
@@ -66,31 +66,31 @@ export const referrals = sqliteTable("referrals", {
   ...timestamps,
 }, (table) => [uniqueIndex("referral_hubspot_deal_idx").on(table.organizationId, table.hubspotDealId)]);
 
-export const referralEvents = sqliteTable("referral_events", {
+export const referralEvents = pgTable("referral_events", {
   id: text("id").primaryKey(),
   referralId: text("referral_id").notNull().references(() => referrals.id),
   eventType: text("event_type").notNull(),
   publicStatus: text("public_status"),
   source: text("source").notNull(),
   summary: text("summary").notNull(),
-  metadata: text("metadata", { mode: "json" }),
-  occurredAt: text("occurred_at").notNull(),
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  metadata: jsonb("metadata"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
-export const rewards = sqliteTable("rewards", {
+export const rewards = pgTable("rewards", {
   id: text("id").primaryKey(),
   referralId: text("referral_id").notNull().references(() => referrals.id).unique(),
   amountCents: integer("amount_cents").notNull(),
   status: text("status").notNull().default("pending_installation"),
-  eligibleAt: text("eligible_at"),
-  paidAt: text("paid_at"),
+  eligibleAt: timestamp("eligible_at", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
   paymentMethod: text("payment_method"),
   paymentReference: text("payment_reference"),
   ...timestamps,
 });
 
-export const emailEvents = sqliteTable("email_events", {
+export const emailEvents = pgTable("email_events", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),
   referralId: text("referral_id").references(() => referrals.id),
@@ -103,7 +103,7 @@ export const emailEvents = sqliteTable("email_events", {
   ...timestamps,
 });
 
-export const webhookEvents = sqliteTable("webhook_events", {
+export const webhookEvents = pgTable("webhook_events", {
   idempotencyKey: text("idempotency_key").primaryKey(),
   organizationId: text("organization_id"),
   provider: text("provider").notNull(),
@@ -111,31 +111,51 @@ export const webhookEvents = sqliteTable("webhook_events", {
   eventType: text("event_type").notNull(),
   propertyName: text("property_name"),
   propertyValue: text("property_value"),
-  payload: text("payload", { mode: "json" }).notNull(),
-  processedAt: text("processed_at"),
-  receivedAt: text("received_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  payload: jsonb("payload").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
-export const teamMembers = sqliteTable("team_members", {
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  totpSecret: text("totp_secret"),
+  totpEnabled: boolean("totp_enabled").notNull().default(false),
+  ...timestamps,
+});
+
+export const teamMembers = pgTable("team_members", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),
-  userId: text("user_id"),
+  userId: text("user_id").references(() => users.id),
   email: text("email").notNull(),
   name: text("name").notNull(),
   role: text("role").notNull(),
   status: text("status").notNull().default("invited"),
-  twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).notNull().default(false),
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   ...timestamps,
 }, (table) => [uniqueIndex("team_org_email_idx").on(table.organizationId, table.email)]);
 
-export const auditEvents = sqliteTable("audit_events", {
+export const trackerTokens = pgTable("tracker_tokens", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  referralId: text("referral_id").references(() => referrals.id),
+  referrerId: text("referrer_id").references(() => referrers.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+
+export const auditEvents = pgTable("audit_events", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),
   actorId: text("actor_id").notNull(),
   action: text("action").notNull(),
   targetType: text("target_type").notNull(),
   targetId: text("target_id").notNull(),
-  beforeValue: text("before_value", { mode: "json" }),
-  afterValue: text("after_value", { mode: "json" }),
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  beforeValue: jsonb("before_value"),
+  afterValue: jsonb("after_value"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });

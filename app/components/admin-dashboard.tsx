@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Brand } from "./brand";
 import { AdminReferral, demoEmailEvents, demoReferrals, demoTeam } from "../lib/admin-data";
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
+import { mintTrackerLinkAction } from "../lib/tracker-actions";
 
 type Section = "overview" | "referrals" | "campaigns" | "rewards" | "emails" | "analytics" | "team" | "integrations";
 
@@ -25,7 +26,11 @@ const campaigns = [
   { state: "CO", name: "Colorado Referrals", offer: "No customer offer", reward: "$50 referrer reward", leads: 25, active: false, color: "mountain" },
 ];
 
-export function AdminDashboard() {
+function initials(name: string) {
+  return name.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+}
+
+export function AdminDashboard({ currentUser, signOutAction }: { currentUser: { name: string; role: string }; signOutAction: () => Promise<void> }) {
   const [section, setSection] = useState<Section>("overview");
   const [query, setQuery] = useState("");
   const [stateFilter, setStateFilter] = useState("All states");
@@ -47,6 +52,13 @@ export function AdminDashboard() {
     setNotice(`${referral.id} was marked paid and added to the audit log.`);
   }
 
+  async function mintTrackerLink() {
+    const path = await mintTrackerLinkAction("customer");
+    const url = `${window.location.origin}${path}`;
+    await navigator.clipboard.writeText(url);
+    setNotice(`Tracker link copied: ${url}`);
+  }
+
   return (
     <main className="admin-app">
       <aside className="admin-sidebar">
@@ -58,13 +70,17 @@ export function AdminDashboard() {
             </button>
           ))}
         </nav>
-        <div className="admin-sidebar-foot"><span className="team-avatar">SJ</span><div><strong>Sandeep</strong><small>Owner</small></div><span>•••</span></div>
+        <form className="admin-sidebar-foot" action={signOutAction}>
+          <span className="team-avatar">{initials(currentUser.name)}</span>
+          <div><strong>{currentUser.name}</strong><small>{currentUser.role}</small></div>
+          <button type="submit" aria-label="Sign out" title="Sign out">•••</button>
+        </form>
       </aside>
 
       <section className="admin-main">
         <header className="admin-topbar">
           <div><span className="admin-breadcrumb">NuVision /</span><strong>{sections.find((item) => item.key === section)?.label}</strong></div>
-          <div className="admin-top-actions"><span className="sync-chip test-sync-chip"><i /> Test mode • HubSpot simulated</span><button type="button">?</button><span className="team-avatar">SJ</span></div>
+          <div className="admin-top-actions"><span className="sync-chip test-sync-chip"><i /> Test mode • HubSpot simulated</span><button type="button">?</button><span className="team-avatar">{initials(currentUser.name)}</span></div>
         </header>
 
         {notice ? <div className="admin-notice" role="status"><span>✓</span>{notice}<button onClick={() => setNotice("")} type="button">×</button></div> : null}
@@ -83,7 +99,7 @@ export function AdminDashboard() {
         </div>
       </section>
 
-      {selected ? <ReferralDrawer referral={selected} onClose={() => setSelected(null)} onPay={markPaid} /> : null}
+      {selected ? <ReferralDrawer referral={selected} onClose={() => setSelected(null)} onPay={markPaid} onMintTrackerLink={mintTrackerLink} /> : null}
     </main>
   );
 }
@@ -135,4 +151,4 @@ function TeamView() { return <><PageTitle eyebrow="ACCESS CONTROL" title="Team &
 
 function IntegrationsView() { return <><PageTitle eyebrow="SYSTEM HEALTH" title="Integrations" description="Test mappings and workflows before your developers connect production services." /><div className="integration-grid"><article className="admin-card integration-card"><div className="integration-logo hubspot-logo">H</div><div><span className="paused-dot">Simulated</span><h2>HubSpot CRM</h2><p>Contacts, deals, stage changes, and installation completion use seeded test events.</p></div><dl><div><dt>CRM writes</dt><dd>Disabled</dd></div><div><dt>Webhook endpoint</dt><dd>Awaiting secret</dd></div><div><dt>Test mapping</dt><dd>15 checks passed</dd></div></dl><button type="button">Review mapping</button></article><article className="admin-card integration-card"><div className="integration-logo email-logo">@</div><div><span className="paused-dot">Simulated</span><h2>Transactional email</h2><p>Templates and event previews are active. No messages leave the application.</p></div><dl><div><dt>Live sending</dt><dd>Disabled</dd></div><div><dt>Templates</dt><dd>6 configured</dd></div><div><dt>Provider</dt><dd>Choose before launch</dd></div></dl><button type="button">Preview templates</button></article></div></>; }
 
-function ReferralDrawer({ referral, onClose, onPay }: { referral: AdminReferral; onClose: () => void; onPay: (referral: AdminReferral) => void }) { return <div className="drawer-backdrop"><button className="drawer-close-backdrop" onClick={onClose} aria-label="Close referral details" type="button" /><aside className="referral-drawer"><header><div><span>{referral.id}</span><h2>{referral.customer}</h2></div><button onClick={onClose} type="button">×</button></header><div className="drawer-status"><span className={`admin-status status-${referral.status}`}>{statusLabel(referral.status)}</span><span className={`sync-${referral.syncStatus}`}>HubSpot {referral.syncStatus}</span></div><section><span className="drawer-label">PEOPLE</span><div className="person-pair"><article><small>REFERRER</small><strong>{referral.referrer}</strong><span>{referral.referrerEmail}</span></article><span>→</span><article><small>CUSTOMER</small><strong>{referral.customer}</strong><span>{referral.customerEmail}</span></article></div></section><section><span className="drawer-label">REFERRAL DETAILS</span><dl className="drawer-details"><div><dt>Code</dt><dd>{referral.code}</dd></div><div><dt>Market</dt><dd>{referral.zip}, {referral.state}</dd></div><div><dt>HubSpot deal</dt><dd>#{referral.hubspotDealId}</dd></div><div><dt>HubSpot stage</dt><dd>{referral.hubspotStage}</dd></div><div><dt>Installation</dt><dd>{referral.installedAt ?? "Not completed"}</dd></div><div><dt>Reward</dt><dd>${referral.rewardAmount}</dd></div></dl></section><section><span className="drawer-label">TIMELINE</span><ol className="drawer-timeline"><li className="complete"><i />Referral form submitted<small>{referral.submittedAt}</small></li><li className={referral.status !== "received" ? "complete" : ""}><i />Appointment scheduled<small>{referral.status === "received" ? "Waiting" : "Synced from HubSpot"}</small></li><li className={["installed", "paid"].includes(referral.status) ? "complete" : ""}><i />Installation completed<small>{referral.installedAt ?? "Waiting"}</small></li><li className={referral.status === "paid" ? "complete" : ""}><i />Reward paid<small>{referral.status === "paid" ? "Processed" : "Waiting"}</small></li></ol></section><footer><button className="button button-secondary" type="button">Open in HubSpot</button><button className="button button-primary" disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Payment locked"}</button></footer></aside></div>; }
+function ReferralDrawer({ referral, onClose, onPay, onMintTrackerLink }: { referral: AdminReferral; onClose: () => void; onPay: (referral: AdminReferral) => void; onMintTrackerLink: () => void }) { return <div className="drawer-backdrop"><button className="drawer-close-backdrop" onClick={onClose} aria-label="Close referral details" type="button" /><aside className="referral-drawer"><header><div><span>{referral.id}</span><h2>{referral.customer}</h2></div><button onClick={onClose} type="button">×</button></header><div className="drawer-status"><span className={`admin-status status-${referral.status}`}>{statusLabel(referral.status)}</span><span className={`sync-${referral.syncStatus}`}>HubSpot {referral.syncStatus}</span></div><section><span className="drawer-label">PEOPLE</span><div className="person-pair"><article><small>REFERRER</small><strong>{referral.referrer}</strong><span>{referral.referrerEmail}</span></article><span>→</span><article><small>CUSTOMER</small><strong>{referral.customer}</strong><span>{referral.customerEmail}</span></article></div></section><section><span className="drawer-label">REFERRAL DETAILS</span><dl className="drawer-details"><div><dt>Code</dt><dd>{referral.code}</dd></div><div><dt>Market</dt><dd>{referral.zip}, {referral.state}</dd></div><div><dt>HubSpot deal</dt><dd>#{referral.hubspotDealId}</dd></div><div><dt>HubSpot stage</dt><dd>{referral.hubspotStage}</dd></div><div><dt>Installation</dt><dd>{referral.installedAt ?? "Not completed"}</dd></div><div><dt>Reward</dt><dd>${referral.rewardAmount}</dd></div></dl></section><section><span className="drawer-label">TIMELINE</span><ol className="drawer-timeline"><li className="complete"><i />Referral form submitted<small>{referral.submittedAt}</small></li><li className={referral.status !== "received" ? "complete" : ""}><i />Appointment scheduled<small>{referral.status === "received" ? "Waiting" : "Synced from HubSpot"}</small></li><li className={["installed", "paid"].includes(referral.status) ? "complete" : ""}><i />Installation completed<small>{referral.installedAt ?? "Waiting"}</small></li><li className={referral.status === "paid" ? "complete" : ""}><i />Reward paid<small>{referral.status === "paid" ? "Processed" : "Waiting"}</small></li></ol></section><footer><button className="button button-secondary" type="button">Open in HubSpot</button><button className="button button-secondary" onClick={onMintTrackerLink} type="button">Copy tracker link</button><button className="button button-primary" disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Payment locked"}</button></footer></aside></div>; }

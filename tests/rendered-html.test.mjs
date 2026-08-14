@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-const { default: worker } = await import(workerUrl.href);
+const serverUrl = new URL("../dist/server/index.js", import.meta.url);
+serverUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
+const { default: handleRequest } = await import(serverUrl.href);
 
 async function render(pathname) {
-  return worker.fetch(
+  return handleRequest(
     new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" } }),
-    { DB: {}, ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
   );
 }
 
@@ -32,19 +30,14 @@ test("server-renders the ZIP-gated referred-customer journey", async () => {
   assert.match(html, /Your referral is already attached/);
 });
 
-test("server-renders the operational dashboard and safe reward language", async () => {
+test("redirects unauthenticated visitors away from the admin dashboard", async () => {
   const response = await render("/admin");
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  assert.match(html, /Referral operations/);
-  assert.match(html, /Rewards outstanding/);
-  assert.match(html, /Test mode • HubSpot simulated/);
-  assert.match(html, /No CRM writes, emails, or payments are sent/);
+  assert.equal(response.status, 307);
+  assert.match(response.headers.get("location") ?? "", /\/admin\/login\?/);
 });
 
-test("server-renders valid and expired tracker states", async () => {
-  const valid = await render("/track/referrer/demo");
-  assert.match(await valid.text(), /Your referrals are moving/);
-  const expired = await render("/track/customer/expired");
-  assert.match(await expired.text(), /tracking link has expired/);
-});
+// Tracker token verification and the authenticated admin dashboard now query Postgres
+// (see app/lib/tracker-tokens.ts, app/lib/auth.ts) instead of matching a hardcoded
+// "demo"/"expired" string. This suite has no DATABASE_URL/live DB, so those paths are
+// covered by unit tests in tests/auth.test.ts (hash/expiry logic) and must be exercised
+// manually against a real database (see plan verification steps) rather than here.
