@@ -25,6 +25,13 @@ Internal Next.js web app (referrer/customer referral portal + admin ops portal),
 4. **`package.json`** — runtime requirements (Node ≥22.13) to confirm compute compatibility.
 5. **Target subdomain** (e.g. `referrals.nuvisionautoglass.com`) — needed to confirm it's under a Route 53 zone he controls, or to create one.
 
+## Deployment
+
+`deploy/aws-setup.sh` provisions everything (RDS, Secrets Manager, App Runner)
+once access is granted — see `deploy/README.md` for the exact sequence,
+including the one manual step (authorizing the App Runner GitHub connection)
+that can't be scripted.
+
 ## Not needed from him right now
 - Production HubSpot or email provider credentials — those are handled separately once the app is off test mode.
 - Any resource provisioning on his part — I'll create everything myself once access is granted.
