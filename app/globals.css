@@ -134,14 +134,13 @@ a { color: inherit; }
 
 .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; min-width: max-content; }
 .brand-mark {
-  width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px;
-  background: linear-gradient(145deg, var(--blue-900), var(--blue-500)); color: white;
-  font-weight: 900; font-style: italic; font-size: 22px; box-shadow: 0 8px 18px rgba(6, 105, 168, .24);
+  width: 42px; height: 42px; display: block; object-fit: contain;
+  filter: drop-shadow(0 8px 18px rgba(6, 105, 168, .24));
 }
 .brand-words { display: flex; flex-direction: column; line-height: .96; }
 .brand-words strong { font-size: 22px; letter-spacing: -.8px; color: var(--blue-900); font-style: italic; }
 .brand-words small { font-size: 8px; letter-spacing: 2.3px; font-weight: 800; color: var(--blue-700); margin-top: 5px; }
-.brand-compact .brand-mark { width: 34px; height: 34px; font-size: 18px; border-radius: 10px; }
+.brand-compact .brand-mark { width: 34px; height: 34px; }
 .brand-compact .brand-words strong { font-size: 18px; }
 
 .hero { display: grid; grid-template-columns: 1fr 500px; gap: 88px; align-items: center; padding-block: 84px 72px; }
@@ -210,7 +209,7 @@ a { color: inherit; }
 .step-card p { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 0; }
 
 .public-footer { padding-block: 32px; background: var(--blue-900); color: white; }
-.public-footer .brand-mark { box-shadow: none; background: white; color: var(--blue-700); }
+.public-footer .brand-mark { filter: none; }
 .public-footer .brand-words strong, .public-footer .brand-words small { color: white; }
 .public-footer p { color: #c6dbea; font-size: 13px; }
 .public-footer div:last-child { display: flex; gap: 20px; }
@@ -356,7 +355,7 @@ a { color: inherit; }
 .admin-app { min-height: 100vh; display: grid; grid-template-columns: 238px minmax(0, 1fr); background: var(--wash); color: var(--ink); }
 .admin-sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 22px 14px 16px; background: #071b2c; color: white; }
 .admin-brand { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 24px; border-bottom: 1px solid rgba(255,255,255,.11); }
-.admin-brand .brand-mark { background: white; color: var(--blue-700); box-shadow: none; }
+.admin-brand .brand-mark { filter: none; }
 .admin-brand .brand-words strong, .admin-brand .brand-words small { color: white; }
 .admin-brand > span { color: #8fb4cf; font-size: 8px; letter-spacing: 1.7px; font-weight: 800; }
 .admin-sidebar nav { display: flex; flex-direction: column; gap: 4px; margin-top: 22px; }

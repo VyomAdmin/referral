@@ -3,7 +3,7 @@ import Link from "next/link";
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link className={`brand ${compact ? "brand-compact" : ""}`} href="/" aria-label="NuVision Referrals home">
-      <span className="brand-mark" aria-hidden="true">N</span>
+      <img className="brand-mark" src="/brand-icon.png" alt="" width={42} height={42} />
       <span className="brand-words">
         <strong>NuVision</strong>
         <small>AUTO GLASS</small>
