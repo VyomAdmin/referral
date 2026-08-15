@@ -37,7 +37,10 @@ export function AddUserForm() {
       {state?.status === "success" ? (
         <div className="admin-notice" role="status">
           <span>✓</span>
-          Invite created. Send this link to the new teammate — there&apos;s no email sending configured yet, so it isn&apos;t sent automatically.
+          <div>
+            Invite created. Send this link to the new teammate — there&apos;s no email sending configured yet, so it isn&apos;t sent automatically.
+            <input data-testid="invite-url" readOnly value={state.inviteUrl} onFocus={(event) => event.currentTarget.select()} />
+          </div>
           <button type="button" onClick={() => copyInviteUrl(state.inviteUrl)}>{copied ? "Copied!" : "Copy invite link"}</button>
         </div>
       ) : null}
