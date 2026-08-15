@@ -1,12 +1,12 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-import { getDb } from "../../../../db/index.ts";
-import { teamMembers } from "../../../../db/schema.ts";
-import { auth } from "../../../lib/auth";
-import { ADMIN_ROLES, ASSIGNABLE_ROLES } from "../../../lib/roles";
-import { createInviteToken, revokeInviteTokensForTeamMember } from "../../../lib/invite-tokens";
-import { logAuditEvent } from "../../../lib/audit";
+import { getDb } from "../../db/index.ts";
+import { teamMembers } from "../../db/schema.ts";
+import { auth } from "./auth";
+import { ADMIN_ROLES, ASSIGNABLE_ROLES } from "./roles";
+import { createInviteToken, revokeInviteTokensForTeamMember } from "./invite-tokens";
+import { logAuditEvent } from "./audit";
 
 export type InviteUserState = { status: "error"; message: string } | { status: "success"; inviteUrl: string } | undefined;
 

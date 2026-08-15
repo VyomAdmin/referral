@@ -1,11 +1,11 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { getDb } from "../../../../db/index.ts";
-import { users } from "../../../../db/schema.ts";
-import { auth } from "../../../lib/auth";
-import { verifyTotpCode } from "../../../lib/totp";
-import { logAuditEvent } from "../../../lib/audit";
+import { getDb } from "../../db/index.ts";
+import { users } from "../../db/schema.ts";
+import { auth } from "./auth";
+import { verifyTotpCode } from "./totp";
+import { logAuditEvent } from "./audit";
 
 export async function confirmTotpEnrollment(_prevState: string | undefined, formData: FormData) {
   const session = await auth();

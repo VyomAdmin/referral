@@ -14,7 +14,7 @@ export function AcceptInviteForm({ token, email, name, role }: { token: string; 
         Password
         <input name="password" type="password" autoComplete="new-password" minLength={8} required />
       </label>
-      {error ? <p role="alert" className="admin-login-error">{error}</p> : null}
+      {error ? <p role="alert" className="form-error">{error}</p> : null}
       <button type="submit" disabled={pending}>{pending ? "Creating account…" : "Set password and sign in"}</button>
     </form>
   );

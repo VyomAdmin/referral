@@ -1,13 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { Brand } from "./brand";
+import { AddUserForm } from "./add-user-form";
+import { TotpEnrollmentForm } from "./totp-enrollment-form";
 import { AdminReferral, demoEmailEvents, demoReferrals, demoTeam } from "../lib/admin-data";
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
+import { ADMIN_ROLES } from "../lib/roles";
 
-type Section = "overview" | "referrals" | "campaigns" | "rewards" | "emails" | "analytics" | "team" | "integrations";
+type Section = "overview" | "referrals" | "campaigns" | "rewards" | "emails" | "analytics" | "team" | "integrations" | "settings";
 
 const sections: { key: Section; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "⌂" },
@@ -18,7 +20,10 @@ const sections: { key: Section; label: string; icon: string }[] = [
   { key: "analytics", label: "Analytics", icon: "▥" },
   { key: "team", label: "Team & roles", icon: "♙" },
   { key: "integrations", label: "Integrations", icon: "⌁" },
+  { key: "settings", label: "Settings", icon: "⚙" },
 ];
+
+type TeamMember = { id: string; name: string; email: string; role: string; status: string };
 
 const campaigns = [
   { state: "AZ", name: "Arizona Friends & Family", offer: "$50 customer benefit", reward: "$50 referrer reward", leads: 291, active: true, color: "sun" },
@@ -31,7 +36,14 @@ function initials(name: string) {
   return name.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 }
 
-export function AdminDashboard({ currentUser, signOutAction }: { currentUser: { name: string; role: string }; signOutAction: () => Promise<void> }) {
+export function AdminDashboard({ currentUser, signOutAction, teamMembers, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
+  currentUser: { name: string; role: string };
+  signOutAction: () => Promise<void>;
+  teamMembers: TeamMember[];
+  totpEnabled: boolean;
+  totpSecret: string;
+  totpQrCodeDataUrl: string;
+}) {
   const [section, setSection] = useState<Section>("overview");
   const [query, setQuery] = useState("");
   const [stateFilter, setStateFilter] = useState("All states");
@@ -81,7 +93,7 @@ export function AdminDashboard({ currentUser, signOutAction }: { currentUser: { 
       <section className="admin-main">
         <header className="admin-topbar">
           <div><span className="admin-breadcrumb">NuVision /</span><strong>{sections.find((item) => item.key === section)?.label}</strong></div>
-          <div className="admin-top-actions"><span className="sync-chip test-sync-chip"><i /> Test mode • HubSpot simulated</span><Link href="/admin/settings" aria-label="Settings" title="Settings">⚙</Link><button type="button">?</button><span className="team-avatar">{initials(currentUser.name)}</span></div>
+          <div className="admin-top-actions"><span className="sync-chip test-sync-chip"><i /> Test mode • HubSpot simulated</span><button onClick={() => setSection("settings")} aria-label="Settings" title="Settings" type="button">⚙</button><button type="button">?</button><span className="team-avatar">{initials(currentUser.name)}</span></div>
         </header>
 
         {notice ? <div className="admin-notice" role="status"><span>✓</span>{notice}<button onClick={() => setNotice("")} type="button">×</button></div> : null}
@@ -97,6 +109,9 @@ export function AdminDashboard({ currentUser, signOutAction }: { currentUser: { 
           {section === "analytics" ? <AnalyticsView /> : null}
           {section === "team" ? <TeamView /> : null}
           {section === "integrations" ? <IntegrationsView /> : null}
+          {section === "settings" ? (
+            <SettingsView currentUserRole={currentUser.role} teamMembers={teamMembers} totpEnabled={totpEnabled} totpSecret={totpSecret} totpQrCodeDataUrl={totpQrCodeDataUrl} />
+          ) : null}
         </div>
       </section>
 
@@ -151,5 +166,55 @@ function AnalyticsView() { return <><PageTitle eyebrow="PERFORMANCE" title="Refe
 function TeamView() { return <><PageTitle eyebrow="ACCESS CONTROL" title="Team & roles" description="Control operational access and require secure sign-in." action="Invite teammate" /><div className="admin-card"><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Teammate</th><th>Role</th><th>Status</th><th>2FA</th><th /></tr></thead><tbody>{demoTeam.map((member) => <tr key={member.email}><td><strong>{member.name}</strong><small>{member.email}</small></td><td>{member.role}</td><td><span className={`admin-status ${member.status === "Active" ? "status-installed" : "status-scheduled"}`}>{member.status}</span></td><td><span className={member.twoFactor ? "two-factor-on" : "two-factor-off"}>{member.twoFactor ? "Enabled" : "Required"}</span></td><td><button type="button">•••</button></td></tr>)}</tbody></table></div></div><div className="role-grid">{[["Owner / Admin", "Full access, settings, integrations, and team permissions."], ["CRM Operations", "Customers, referrals, HubSpot sync, and timelines."], ["Rewards / Finance", "Eligibility review, payout status, and exports."], ["Marketing", "Campaigns, forms, offers, and email templates."]].map(([role, copy]) => <article className="admin-card" key={role}><strong>{role}</strong><p>{copy}</p><button type="button">Edit permissions</button></article>)}</div></>; }
 
 function IntegrationsView() { return <><PageTitle eyebrow="SYSTEM HEALTH" title="Integrations" description="Test mappings and workflows before your developers connect production services." /><div className="integration-grid"><article className="admin-card integration-card"><div className="integration-logo hubspot-logo">H</div><div><span className="paused-dot">Simulated</span><h2>HubSpot CRM</h2><p>Contacts, deals, stage changes, and installation completion use seeded test events.</p></div><dl><div><dt>CRM writes</dt><dd>Disabled</dd></div><div><dt>Webhook endpoint</dt><dd>Awaiting secret</dd></div><div><dt>Test mapping</dt><dd>15 checks passed</dd></div></dl><button type="button">Review mapping</button></article><article className="admin-card integration-card"><div className="integration-logo email-logo">@</div><div><span className="paused-dot">Simulated</span><h2>Transactional email</h2><p>Templates and event previews are active. No messages leave the application.</p></div><dl><div><dt>Live sending</dt><dd>Disabled</dd></div><div><dt>Templates</dt><dd>6 configured</dd></div><div><dt>Provider</dt><dd>Choose before launch</dd></div></dl><button type="button">Preview templates</button></article></div></>; }
+
+function SettingsView({ currentUserRole, teamMembers, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
+  currentUserRole: string;
+  teamMembers: TeamMember[];
+  totpEnabled: boolean;
+  totpSecret: string;
+  totpQrCodeDataUrl: string;
+}) {
+  const canManageUsers = ADMIN_ROLES.includes(currentUserRole);
+  const [tab, setTab] = useState<"users" | "security">(canManageUsers ? "users" : "security");
+
+  return <>
+    <PageTitle eyebrow="ADMINISTRATION" title="Settings" description="Manage who has access and secure your own account." />
+    <div className="settings-tabs">
+      {canManageUsers ? <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")} type="button">Manage users</button> : null}
+      <button className={tab === "security" ? "active" : ""} onClick={() => setTab("security")} type="button">Security</button>
+    </div>
+    {tab === "users" && canManageUsers ? (
+      <>
+        <div className="admin-card">
+          <div className="admin-table-scroll">
+            <table className="admin-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+              <tbody>
+                {teamMembers.map((member) => (
+                  <tr key={member.id}>
+                    <td><strong>{member.name}</strong></td>
+                    <td>{member.email}</td>
+                    <td>{member.role}</td>
+                    <td><span className={`admin-status ${member.status === "active" ? "status-installed" : "status-scheduled"}`}>{member.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <h2 className="settings-subheading">Add user</h2>
+        <div className="admin-card settings-panel-card"><AddUserForm /></div>
+      </>
+    ) : null}
+    {tab === "security" ? (
+      <>
+        <h2 className="settings-subheading">Two-factor authentication</h2>
+        <div className="admin-card settings-panel-card">
+          {totpEnabled ? <p>Two-factor authentication is enabled on your account.</p> : <TotpEnrollmentForm secret={totpSecret} qrCodeDataUrl={totpQrCodeDataUrl} />}
+        </div>
+      </>
+    ) : null}
+  </>;
+}
 
 function ReferralDrawer({ referral, onClose, onPay, onMintTrackerLink }: { referral: AdminReferral; onClose: () => void; onPay: (referral: AdminReferral) => void; onMintTrackerLink: () => void }) { return <div className="drawer-backdrop"><button className="drawer-close-backdrop" onClick={onClose} aria-label="Close referral details" type="button" /><aside className="referral-drawer"><header><div><span>{referral.id}</span><h2>{referral.customer}</h2></div><button onClick={onClose} type="button">×</button></header><div className="drawer-status"><span className={`admin-status status-${referral.status}`}>{statusLabel(referral.status)}</span><span className={`sync-${referral.syncStatus}`}>HubSpot {referral.syncStatus}</span></div><section><span className="drawer-label">PEOPLE</span><div className="person-pair"><article><small>REFERRER</small><strong>{referral.referrer}</strong><span>{referral.referrerEmail}</span></article><span>→</span><article><small>CUSTOMER</small><strong>{referral.customer}</strong><span>{referral.customerEmail}</span></article></div></section><section><span className="drawer-label">REFERRAL DETAILS</span><dl className="drawer-details"><div><dt>Code</dt><dd>{referral.code}</dd></div><div><dt>Market</dt><dd>{referral.zip}, {referral.state}</dd></div><div><dt>HubSpot deal</dt><dd>#{referral.hubspotDealId}</dd></div><div><dt>HubSpot stage</dt><dd>{referral.hubspotStage}</dd></div><div><dt>Installation</dt><dd>{referral.installedAt ?? "Not completed"}</dd></div><div><dt>Reward</dt><dd>${referral.rewardAmount}</dd></div></dl></section><section><span className="drawer-label">TIMELINE</span><ol className="drawer-timeline"><li className="complete"><i />Referral form submitted<small>{referral.submittedAt}</small></li><li className={referral.status !== "received" ? "complete" : ""}><i />Appointment scheduled<small>{referral.status === "received" ? "Waiting" : "Synced from HubSpot"}</small></li><li className={["installed", "paid"].includes(referral.status) ? "complete" : ""}><i />Installation completed<small>{referral.installedAt ?? "Waiting"}</small></li><li className={referral.status === "paid" ? "complete" : ""}><i />Reward paid<small>{referral.status === "paid" ? "Processed" : "Waiting"}</small></li></ol></section><footer><button className="button button-secondary" type="button">Open in HubSpot</button><button className="button button-secondary" onClick={onMintTrackerLink} type="button">Copy tracker link</button><button className="button button-primary" disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Payment locked"}</button></footer></aside></div>; }

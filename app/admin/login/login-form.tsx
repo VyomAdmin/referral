@@ -20,7 +20,7 @@ export function LoginForm() {
         Authentication code
         <input name="totpCode" type="text" inputMode="numeric" pattern="\d{6}" placeholder="6-digit code (if enrolled)" autoComplete="one-time-code" />
       </label>
-      {error ? <p role="alert" className="admin-login-error">{error}</p> : null}
+      {error ? <p role="alert" className="form-error">{error}</p> : null}
       <button type="submit" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
     </form>
   );
