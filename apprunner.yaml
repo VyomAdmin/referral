@@ -6,7 +6,7 @@ build:
       - npm ci
       - npm run build
 run:
-  command: sh -c "npm run db:migrate && npm start"
+  command: sh scripts/start.sh
   network:
     port: 3000
     env: PORT
