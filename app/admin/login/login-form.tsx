@@ -7,21 +7,23 @@ export function LoginForm() {
   const [error, formAction, pending] = useActionState(authenticate, undefined);
 
   return (
-    <form action={formAction} className="admin-login-form">
-      <label>
+    <form action={formAction} className="signup-grid">
+      <label className="field-wide">
         Email
         <input name="email" type="email" autoComplete="email" required />
       </label>
-      <label>
+      <label className="field-wide">
         Password
         <input name="password" type="password" autoComplete="current-password" required />
       </label>
-      <label>
+      <label className="field-wide">
         Authentication code
         <input name="totpCode" type="text" inputMode="numeric" pattern="\d{6}" placeholder="6-digit code (if enrolled)" autoComplete="one-time-code" />
       </label>
-      {error ? <p role="alert" className="form-error">{error}</p> : null}
-      <button type="submit" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
+      {error ? <p role="alert" className="form-error field-wide">{error}</p> : null}
+      <div className="field-wide">
+        <button className="button button-primary admin-login-submit" type="submit" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
+      </div>
     </form>
   );
 }

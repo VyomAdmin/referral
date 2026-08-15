@@ -9,20 +9,27 @@ export default async function AcceptInvitePage({ params }: { params: Promise<{ t
   const invite = await verifyInviteToken(token);
 
   return (
-    <main className="admin-login-page">
-      <section className="admin-login-card">
-        <Brand compact />
-        {invite ? (
-          <>
-            <h1>You&apos;re invited</h1>
-            <AcceptInviteForm token={token} email={invite.email} name={invite.name} role={invite.role} />
-          </>
-        ) : (
-          <>
-            <h1>Invite not found</h1>
-            <p>This invite link is invalid, expired, or has already been used. Ask whoever invited you to send a new one.</p>
-          </>
-        )}
+    <main className="public-page">
+      <header className="public-header">
+        <div className="page-width header-inner">
+          <Brand />
+        </div>
+      </header>
+      <section className="admin-login-shell page-width">
+        <div className="hero-card admin-login-card">
+          <Brand compact />
+          {invite ? (
+            <>
+              <h1>You&apos;re invited</h1>
+              <AcceptInviteForm token={token} email={invite.email} name={invite.name} role={invite.role} />
+            </>
+          ) : (
+            <>
+              <h1>Invite not found</h1>
+              <p>This invite link is invalid, expired, or has already been used. Ask whoever invited you to send a new one.</p>
+            </>
+          )}
+        </div>
       </section>
     </main>
   );

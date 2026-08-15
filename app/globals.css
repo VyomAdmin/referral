@@ -464,6 +464,15 @@ a { color: inherit; }
 .market-performance > div:not(.admin-card-head) { display: grid; grid-template-columns: 95px 1fr 30px; align-items: center; gap: 10px; padding: 11px 0; }
 .role-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }.role-grid article { padding: 17px; }.role-grid article > strong { font-size: 11px; }.role-grid p { min-height: 54px; color: var(--muted); font-size: 9px; line-height: 1.5; }.role-grid button { padding: 0; border: 0; background: none; color: var(--blue-700); font-size: 8px; font-weight: 750; cursor: pointer; }.two-factor-on { color: #61920b; }.two-factor-off { color: var(--danger); }
 .integration-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }.integration-card { display: grid; gap: 18px; padding: 24px; }.integration-logo { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 13px; color: white; font-size: 20px; font-weight: 900; }.hubspot-logo { background: #f57842; }.email-logo { background: var(--blue-700); }.integration-card h2 { margin: 8px 0 6px; }.integration-card p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }.integration-card dl { margin: 0; }.integration-card dl > div { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 9px; }.integration-card dt { color: var(--muted); }.integration-card dd { margin: 0; font-weight: 700; }.integration-card > button { min-height: 38px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--blue-700); font-size: 9px; font-weight: 750; cursor: pointer; }
+.admin-login-shell { min-height: calc(100vh - 82px); display: flex; align-items: center; justify-content: center; padding: 48px 0; }
+.admin-login-card { width: min(440px, 100%); text-align: center; }
+.admin-login-card .brand { justify-content: center; margin-bottom: 6px; }
+.admin-login-card h1 { margin: 4px 0 8px; font-size: 30px; letter-spacing: -1px; }
+.admin-login-card > p { margin: 0 0 8px; color: var(--muted); }
+.admin-login-card .signup-grid { margin-top: 10px; text-align: left; }
+.admin-login-submit { width: 100%; margin-top: 4px; }
+.admin-login-card .form-error { text-align: left; }
+
 .settings-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
 .settings-tabs button { min-height: 38px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; }
 .settings-tabs button.active { border-color: var(--blue-700); background: var(--blue-700); color: white; }
