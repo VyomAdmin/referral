@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Brand } from "./brand";
 import { AdminReferral, demoEmailEvents, demoReferrals, demoTeam } from "../lib/admin-data";
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
@@ -80,7 +81,7 @@ export function AdminDashboard({ currentUser, signOutAction }: { currentUser: { 
       <section className="admin-main">
         <header className="admin-topbar">
           <div><span className="admin-breadcrumb">NuVision /</span><strong>{sections.find((item) => item.key === section)?.label}</strong></div>
-          <div className="admin-top-actions"><span className="sync-chip test-sync-chip"><i /> Test mode • HubSpot simulated</span><button type="button">?</button><span className="team-avatar">{initials(currentUser.name)}</span></div>
+          <div className="admin-top-actions"><span className="sync-chip test-sync-chip"><i /> Test mode • HubSpot simulated</span><Link href="/admin/settings" aria-label="Settings" title="Settings">⚙</Link><button type="button">?</button><span className="team-avatar">{initials(currentUser.name)}</span></div>
         </header>
 
         {notice ? <div className="admin-notice" role="status"><span>✓</span>{notice}<button onClick={() => setNotice("")} type="button">×</button></div> : null}

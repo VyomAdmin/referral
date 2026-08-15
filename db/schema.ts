@@ -148,6 +148,16 @@ export const trackerTokens = pgTable("tracker_tokens", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
+export const inviteTokens = pgTable("invite_tokens", {
+  id: text("id").primaryKey(),
+  teamMemberId: text("team_member_id").notNull().references(() => teamMembers.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+
 export const auditEvents = pgTable("audit_events", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),

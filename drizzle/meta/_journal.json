@@ -15,6 +15,13 @@
       "when": 1786702219971,
       "tag": "0001_certain_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786800842930,
+      "tag": "0002_deep_vance_astro",
+      "breakpoints": true
     }
   ]
 }

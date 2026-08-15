@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { hashPassword, verifyPassword } from "../app/lib/password.ts";
 import { generateTotpSecret, verifyTotpCode } from "../app/lib/totp.ts";
-import { generateTrackerToken, hashTrackerToken, trackerTokenExpiry } from "../app/lib/tracker-tokens.ts";
+import { generateSecureToken, hashSecureToken, secureTokenExpiry } from "../app/lib/secure-token.ts";
 import { generate } from "otplib";
 
 test("password hash/verify round trip", async () => {
@@ -24,16 +24,16 @@ test("TOTP rejects malformed codes without checking the secret", async () => {
   assert.equal(await verifyTotpCode(secret, "123"), false);
 });
 
-test("tracker tokens hash deterministically and are unguessable across generations", () => {
-  const tokenA = generateTrackerToken();
-  const tokenB = generateTrackerToken();
+test("secure tokens hash deterministically and are unguessable across generations", () => {
+  const tokenA = generateSecureToken();
+  const tokenB = generateSecureToken();
   assert.notEqual(tokenA, tokenB);
-  assert.equal(hashTrackerToken(tokenA), hashTrackerToken(tokenA));
-  assert.notEqual(hashTrackerToken(tokenA), hashTrackerToken(tokenB));
+  assert.equal(hashSecureToken(tokenA), hashSecureToken(tokenA));
+  assert.notEqual(hashSecureToken(tokenA), hashSecureToken(tokenB));
 });
 
-test("tracker token expiry is computed relative to the given timestamp", () => {
+test("secure token expiry is computed relative to the given timestamp", () => {
   const from = new Date("2026-01-01T00:00:00Z");
-  const expiry = trackerTokenExpiry(90, from);
+  const expiry = secureTokenExpiry(90, from);
   assert.equal(expiry.toISOString(), "2026-04-01T00:00:00.000Z");
 });
