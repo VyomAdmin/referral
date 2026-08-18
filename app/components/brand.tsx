@@ -1,14 +1,16 @@
 import Link from "next/link";
 
+export const NUVISION_HOME_URL = "https://www.nuvisionautoglass.com/";
+
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link className={`brand ${compact ? "brand-compact" : ""}`} href="/" aria-label="NuVision Referrals home">
+    <a className={`brand ${compact ? "brand-compact" : ""}`} href={NUVISION_HOME_URL} aria-label="NuVision Auto Glass home">
       <img className="brand-mark" src="/brand-icon.png" alt="" width={42} height={42} />
       <span className="brand-words">
         <strong>NuVision</strong>
         <small>AUTO GLASS</small>
       </span>
-    </Link>
+    </a>
   );
 }
 

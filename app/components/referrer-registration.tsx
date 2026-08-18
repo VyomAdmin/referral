@@ -2,7 +2,8 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { createReferralCode } from "../lib/referral-rules";
+import { isValidPhone } from "../lib/referral-rules";
+import { submitReferrerRegistrationAction } from "../lib/referrer-actions";
 
 type Registration = {
   firstName: string;
@@ -21,6 +22,7 @@ const emptyRegistration: Registration = {
 export function ReferrerRegistration() {
   const [form, setForm] = useState(emptyRegistration);
   const [result, setResult] = useState<{ code: string; firstName: string } | null>(null);
+  const [trackPath, setTrackPath] = useState("/track/referrer/demo");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
@@ -33,16 +35,19 @@ export function ReferrerRegistration() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!form.firstName.trim() || !form.lastName.trim() || !/^\S+@\S+\.\S+$/.test(form.email) || form.phone.replace(/\D/g, "").length < 10) {
-      setError("Please complete every field with a valid email and mobile number.");
+    if (!form.firstName.trim() || !form.lastName.trim() || !/^\S+@\S+\.\S+$/.test(form.email) || !isValidPhone(form.phone)) {
+      setError("Please complete every field with a valid email and a 10-digit mobile number.");
       return;
     }
-    const code = createReferralCode(form.firstName, form.lastName, Date.now());
-    const registration = { ...form, code, createdAt: new Date().toISOString() };
-    window.localStorage.setItem("nuvision-referrer", JSON.stringify(registration));
-    setResult({ code, firstName: form.firstName.trim() });
+    const outcome = await submitReferrerRegistrationAction(form);
+    if ("error" in outcome) {
+      setError(outcome.error);
+      return;
+    }
+    setTrackPath(outcome.trackPath);
+    setResult({ code: outcome.code, firstName: outcome.firstName });
     setError("");
   }
 
@@ -70,7 +75,7 @@ export function ReferrerRegistration() {
           <a href={`sms:?&body=${shareText}%20${encodeURIComponent(link)}`}>Text</a>
           <a href={`mailto:?subject=${encodeURIComponent("A NuVision referral for you")}&body=${shareText}%20${encodeURIComponent(link)}`}>Email</a>
           <a href={`https://wa.me/?text=${shareText}%20${encodeURIComponent(link)}`}>WhatsApp</a>
-          <Link href="/track/referrer/demo">Track referrals</Link>
+          <Link href={trackPath}>Track referrals</Link>
         </div>
       </div>
     );
@@ -92,7 +97,7 @@ export function ReferrerRegistration() {
       </label>
       <label className="field-wide">
         Mobile number
-        <input value={form.phone} onChange={(event) => update("phone", event.target.value)} name="phone" type="tel" placeholder="(602) 555-0123" autoComplete="tel" />
+        <input value={form.phone} onChange={(event) => update("phone", event.target.value)} name="phone" type="tel" inputMode="tel" maxLength={20} placeholder="(602) 555-0123" autoComplete="tel" />
       </label>
       {error ? <p className="form-error field-wide" role="alert">{error}</p> : null}
       <button className="button button-primary field-wide" type="submit">Create my link</button>

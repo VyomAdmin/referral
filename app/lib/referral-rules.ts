@@ -57,6 +57,11 @@ export function campaignForZip(zip: string): StateCampaign | null {
   return null;
 }
 
+export function isValidPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 10 || (digits.length === 11 && digits.startsWith("1"));
+}
+
 export function createReferralCode(firstName: string, lastName: string, seed: number) {
   const clean = `${firstName[0] ?? "N"}${lastName[0] ?? "V"}`
     .toUpperCase()

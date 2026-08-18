@@ -25,7 +25,6 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(origin),
     title: { default: "NuVision Referrals", template: "%s | NuVision Referrals" },
     description,
-    icons: { icon: "/brand-icon.png", shortcut: "/brand-icon.png" },
     openGraph: {
       title: "NuVision Referrals",
       description,

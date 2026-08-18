@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { campaignForZip, StateCampaign } from "../lib/referral-rules";
+import { campaignForZip, isValidPhone, StateCampaign } from "../lib/referral-rules";
+import { submitCustomerReferralAction } from "../lib/referral-actions";
 
 type Lead = {
   name: string;
@@ -22,8 +23,10 @@ export function ReferralJourney({ code }: { code: string }) {
   const [campaign, setCampaign] = useState<StateCampaign | null>(null);
   const [unsupported, setUnsupported] = useState(false);
   const [lead, setLead] = useState(emptyLead);
+  const [consent, setConsent] = useState(false);
   const [formError, setFormError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [trackPath, setTrackPath] = useState("/track/customer/demo");
 
   function findCampaign(event: FormEvent) {
     event.preventDefault();
@@ -37,24 +40,37 @@ export function ReferralJourney({ code }: { code: string }) {
     setZipError("");
   }
 
-  function submitLead(event: FormEvent) {
+  async function submitLead(event: FormEvent) {
     event.preventDefault();
     const complete = Object.values(lead).every((value) => value.trim());
-    if (!complete || !/^\S+@\S+\.\S+$/.test(lead.email) || lead.phone.replace(/\D/g, "").length < 10) {
-      setFormError("Complete every field with a valid email and mobile number.");
+    if (!complete || !/^\S+@\S+\.\S+$/.test(lead.email) || !isValidPhone(lead.phone)) {
+      setFormError("Complete every field with a valid email and a 10-digit mobile number.");
       return;
     }
-    const referral = {
-      id: `REF-${Date.now().toString().slice(-6)}`,
+    if (!consent) {
+      setFormError("Please agree to the program terms to continue.");
+      return;
+    }
+    if (!campaign) return;
+    const [firstName, ...rest] = lead.name.trim().split(/\s+/);
+    const outcome = await submitCustomerReferralAction({
       referralCode: code,
       zip,
-      state: campaign?.state,
-      campaign: campaign?.campaignName,
-      lead,
-      status: "received",
-      createdAt: new Date().toISOString(),
-    };
-    window.localStorage.setItem("nuvision-latest-referral", JSON.stringify(referral));
+      state: campaign.state,
+      firstName,
+      lastName: rest.join(" ") || firstName,
+      email: lead.email,
+      phone: lead.phone,
+      vehicleMake: lead.make,
+      vehicleYear: lead.year,
+      vehicleModel: lead.model,
+      insuranceProvider: lead.insurance,
+    });
+    if ("error" in outcome) {
+      setFormError(outcome.error);
+      return;
+    }
+    setTrackPath(outcome.trackPath);
     setSubmitted(true);
     setFormError("");
   }
@@ -75,7 +91,7 @@ export function ReferralJourney({ code }: { code: string }) {
           <div><span>Location</span><strong>{zip}, {campaign.state}</strong></div>
           <div><span>Status</span><strong>Request received</strong></div>
         </div>
-        <Link className="button button-primary" href="/track/customer/demo">Track my service</Link>
+        <Link className="button button-primary" href={trackPath}>Track my service</Link>
         <small>A confirmation and secure tracking email has been queued for {lead.email}.</small>
       </section>
     );
@@ -133,14 +149,14 @@ export function ReferralJourney({ code }: { code: string }) {
             <div className="customer-form-grid">
               <label className="field-wide">Full name<input value={lead.name} onChange={(event) => update("name", event.target.value)} autoComplete="name" /></label>
               <label>Email<input type="email" value={lead.email} onChange={(event) => update("email", event.target.value)} autoComplete="email" /></label>
-              <label>Mobile number<input type="tel" value={lead.phone} onChange={(event) => update("phone", event.target.value)} autoComplete="tel" /></label>
+              <label>Mobile number<input type="tel" inputMode="tel" maxLength={20} value={lead.phone} onChange={(event) => update("phone", event.target.value)} autoComplete="tel" /></label>
               <label>Vehicle make<input value={lead.make} onChange={(event) => update("make", event.target.value)} placeholder="Toyota" /></label>
               <label>Year<input value={lead.year} onChange={(event) => update("year", event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="2022" /></label>
               <label>Model<input value={lead.model} onChange={(event) => update("model", event.target.value)} placeholder="Camry" /></label>
               <label>Insurance provider<select value={lead.insurance} onChange={(event) => update("insurance", event.target.value)}><option value="">Select one</option><option>State Farm</option><option>GEICO</option><option>Progressive</option><option>Allstate</option><option>Paying cash</option><option>Other</option></select></label>
             </div>
             {formError ? <p className="form-error" role="alert">{formError}</p> : null}
-            <label className="consent-row"><input type="checkbox" required /> <span>I agree to the program terms and consent to service communications.</span></label>
+            <label className="consent-row"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required /> <span>I agree to the program terms and consent to service communications.</span></label>
             <button className="button button-primary" type="submit">Request my quote</button>
           </form>
         ) : null}

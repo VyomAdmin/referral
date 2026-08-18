@@ -368,6 +368,7 @@ a { color: inherit; }
 .admin-sidebar nav button:hover, .admin-sidebar nav button.active { background: rgba(255,255,255,.1); color: white; }
 .admin-sidebar nav button.active > span { background: var(--blue-500); color: white; }
 .admin-sidebar-foot { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; margin-top: auto; padding: 14px 8px 0; border-top: 1px solid rgba(255,255,255,.11); }
+.admin-app ~ .theme-toggle { left: auto; right: 18px; }
 .admin-sidebar-foot > div { display: grid; gap: 2px; }
 .admin-sidebar-foot strong { font-size: 11px; }
 .admin-sidebar-foot small { color: #8fb4cf; font-size: 9px; }

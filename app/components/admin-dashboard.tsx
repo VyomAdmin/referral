@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Brand } from "./brand";
 import { AddUserForm } from "./add-user-form";
 import { TotpEnrollmentForm } from "./totp-enrollment-form";
-import { AdminReferral, demoEmailEvents, demoReferrals, demoTeam } from "../lib/admin-data";
+import { AdminReferral, ReferralStatus, demoEmailEvents, demoTeam } from "../lib/admin-data";
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
 import { ADMIN_ROLES } from "../lib/roles";
@@ -25,7 +25,9 @@ const sections: { key: Section; label: string; icon: string }[] = [
 
 type TeamMember = { id: string; name: string; email: string; role: string; status: string };
 
-const campaigns = [
+type Campaign = { state: string; name: string; offer: string; reward: string; leads: number; active: boolean; color: string };
+
+const campaignSeed: Campaign[] = [
   { state: "AZ", name: "Arizona Friends & Family", offer: "$50 customer benefit", reward: "$50 referrer reward", leads: 291, active: true, color: "sun" },
   { state: "FL", name: "Florida Friends & Family", offer: "No customer offer", reward: "$50 referrer reward", leads: 148, active: true, color: "ocean" },
   { state: "SC", name: "South Carolina Referrals", offer: "No customer offer", reward: "$50 referrer reward", leads: 42, active: true, color: "blue" },
@@ -36,10 +38,11 @@ function initials(name: string) {
   return name.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 }
 
-export function AdminDashboard({ currentUser, signOutAction, teamMembers, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
+export function AdminDashboard({ currentUser, signOutAction, teamMembers, initialReferrals, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
   currentUser: { name: string; role: string };
   signOutAction: () => Promise<void>;
   teamMembers: TeamMember[];
+  initialReferrals: AdminReferral[];
   totpEnabled: boolean;
   totpSecret: string;
   totpQrCodeDataUrl: string;
@@ -47,14 +50,19 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, totpEn
   const [section, setSection] = useState<Section>("overview");
   const [query, setQuery] = useState("");
   const [stateFilter, setStateFilter] = useState("All states");
+  const [statusFilter, setStatusFilter] = useState<"All statuses" | ReferralStatus>("All statuses");
   const [selected, setSelected] = useState<AdminReferral | null>(null);
-  const [referrals, setReferrals] = useState(demoReferrals);
+  const [referrals, setReferrals] = useState(initialReferrals);
+  const [campaigns, setCampaigns] = useState(campaignSeed);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [notice, setNotice] = useState("");
 
   const filteredReferrals = useMemo(() => {
-    const matches = searchReferrals(referrals, query);
-    return stateFilter === "All states" ? matches : matches.filter((referral) => referral.state === stateFilter);
-  }, [query, referrals, stateFilter]);
+    let matches = searchReferrals(referrals, query);
+    if (stateFilter !== "All states") matches = matches.filter((referral) => referral.state === stateFilter);
+    if (statusFilter !== "All statuses") matches = matches.filter((referral) => referral.status === statusFilter);
+    return matches;
+  }, [query, referrals, stateFilter, statusFilter]);
 
   function markPaid(referral: AdminReferral) {
     if (!canMarkRewardPaid(referral)) {
@@ -63,6 +71,12 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, totpEn
     }
     setReferrals((current) => current.map((item) => item.id === referral.id ? { ...item, status: "paid" } : item));
     setNotice(`${referral.id} was marked paid and added to the audit log.`);
+  }
+
+  function saveCampaign(updated: Campaign) {
+    setCampaigns((current) => current.map((campaign) => (campaign.state === updated.state ? updated : campaign)));
+    setEditingCampaign(null);
+    setNotice(`${updated.name} was updated.`);
   }
 
   async function mintTrackerLink() {
@@ -99,11 +113,11 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, totpEn
         {notice ? <div className="admin-notice" role="status"><span>✓</span>{notice}<button onClick={() => setNotice("")} type="button">×</button></div> : null}
 
         <div className="admin-workspace">
-          {section === "overview" ? <Overview onViewReferrals={() => setSection("referrals")} /> : null}
+          {section === "overview" ? <Overview onViewReferrals={() => setSection("referrals")} referrals={referrals} /> : null}
           {section === "referrals" ? (
-            <ReferralsView query={query} setQuery={setQuery} stateFilter={stateFilter} setStateFilter={setStateFilter} referrals={filteredReferrals} onSelect={setSelected} />
+            <ReferralsView query={query} setQuery={setQuery} stateFilter={stateFilter} setStateFilter={setStateFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} referrals={filteredReferrals} onSelect={setSelected} />
           ) : null}
-          {section === "campaigns" ? <CampaignsView /> : null}
+          {section === "campaigns" ? <CampaignsView campaigns={campaigns} onEdit={setEditingCampaign} /> : null}
           {section === "rewards" ? <RewardsView referrals={referrals} onPay={markPaid} /> : null}
           {section === "emails" ? <EmailsView /> : null}
           {section === "analytics" ? <AnalyticsView /> : null}
@@ -116,6 +130,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, totpEn
       </section>
 
       {selected ? <ReferralDrawer referral={selected} onClose={() => setSelected(null)} onPay={markPaid} onMintTrackerLink={mintTrackerLink} /> : null}
+      {editingCampaign ? <CampaignEditDrawer campaign={editingCampaign} onClose={() => setEditingCampaign(null)} onSave={saveCampaign} /> : null}
     </main>
   );
 }
@@ -124,7 +139,7 @@ function PageTitle({ eyebrow, title, description, action }: { eyebrow: string; t
   return <div className="admin-page-title"><div><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{action ? <button className="admin-primary-button" type="button">+ {action}</button> : null}</div>;
 }
 
-function Overview({ onViewReferrals }: { onViewReferrals: () => void }) {
+function Overview({ onViewReferrals, referrals }: { onViewReferrals: () => void; referrals: AdminReferral[] }) {
   return <>
     <PageTitle eyebrow="Tuesday, August 11" title="Referral operations" description="A clear view from first share to final reward." action="New campaign" />
     <div className="admin-metric-grid">
@@ -143,19 +158,41 @@ function Overview({ onViewReferrals }: { onViewReferrals: () => void }) {
         <article><span className="attention-icon team-icon">2</span><div><strong>Two teammate invitations</strong><small>Waiting for acceptance</small></div><button type="button">View</button></article>
       </section>
     </div>
-    <div className="admin-card recent-card"><div className="admin-card-head"><div><span>LATEST REFERRALS</span><h2>Recent activity</h2></div><button className="text-button" onClick={onViewReferrals} type="button">See all →</button></div><ReferralTable referrals={demoReferrals.slice(0, 4)} /></div>
+    <div className="admin-card recent-card"><div className="admin-card-head"><div><span>LATEST REFERRALS</span><h2>Recent activity</h2></div><button className="text-button" onClick={onViewReferrals} type="button">See all →</button></div><ReferralTable referrals={referrals.slice(0, 4)} />{referrals.length === 0 ? <p className="empty-table"><strong>No referrals yet</strong></p> : null}</div>
   </>;
 }
 
-function ReferralsView({ query, setQuery, stateFilter, setStateFilter, referrals, onSelect }: { query: string; setQuery: (value: string) => void; stateFilter: string; setStateFilter: (value: string) => void; referrals: AdminReferral[]; onSelect: (referral: AdminReferral) => void }) {
-  return <><PageTitle eyebrow="CRM OPERATIONS" title="Referrals & people" description="Search any referrer or referred customer across campaigns and HubSpot." action="Create referral" /><div className="table-toolbar"><label className="admin-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, phone, code, HubSpot ID…" /></label><select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}><option>All states</option><option>AZ</option><option>FL</option><option>SC</option><option>CO</option></select><button type="button">Export CSV</button></div><div className="admin-card referral-table-card"><ReferralTable referrals={referrals} onSelect={onSelect} />{referrals.length === 0 ? <div className="empty-table"><strong>No matching referrals</strong><span>Try a different name, phone, code, or filter.</span></div> : null}</div></>;
+function ReferralsView({ query, setQuery, stateFilter, setStateFilter, statusFilter, setStatusFilter, referrals, onSelect }: { query: string; setQuery: (value: string) => void; stateFilter: string; setStateFilter: (value: string) => void; statusFilter: "All statuses" | ReferralStatus; setStatusFilter: (value: "All statuses" | ReferralStatus) => void; referrals: AdminReferral[]; onSelect: (referral: AdminReferral) => void }) {
+  return <><PageTitle eyebrow="CRM OPERATIONS" title="Referrals & people" description="Search any referrer or referred customer across campaigns and HubSpot." action="Create referral" /><div className="table-toolbar"><label className="admin-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, phone, code, HubSpot ID…" /></label><select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}><option>All states</option><option>AZ</option><option>FL</option><option>SC</option><option>CO</option></select><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "All statuses" | ReferralStatus)}><option>All statuses</option><option value="received">{statusLabel("received")}</option><option value="scheduled">{statusLabel("scheduled")}</option><option value="installed">{statusLabel("installed")}</option><option value="paid">{statusLabel("paid")}</option><option value="cancelled">{statusLabel("cancelled")}</option></select><button type="button">Export CSV</button></div><div className="admin-card referral-table-card"><ReferralTable referrals={referrals} onSelect={onSelect} />{referrals.length === 0 ? <div className="empty-table"><strong>No matching referrals</strong><span>Try a different name, phone, code, or filter.</span></div> : null}</div></>;
 }
 
 function ReferralTable({ referrals, onSelect }: { referrals: AdminReferral[]; onSelect?: (referral: AdminReferral) => void }) {
   return <div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Referral</th><th>Referrer</th><th>Customer</th><th>Market</th><th>Status</th><th>HubSpot</th><th /></tr></thead><tbody>{referrals.map((referral) => <tr key={referral.id} onClick={() => onSelect?.(referral)} className={onSelect ? "clickable-row" : ""}><td><strong>{referral.id}</strong><small>{referral.submittedAt}</small></td><td><strong>{referral.referrer}</strong><small>{referral.referrerEmail}</small></td><td><strong>{referral.customer}</strong><small>{referral.phone}</small></td><td><span className={`market-tag market-${referral.state.toLowerCase()}`}>{referral.state}</span><small>{referral.zip}</small></td><td><span className={`admin-status status-${referral.status}`}>{statusLabel(referral.status)}</span></td><td><strong className="hubspot-id">#{referral.hubspotDealId}</strong><small className={`sync-${referral.syncStatus}`}>{referral.syncStatus}</small></td><td><button aria-label={`Open ${referral.id}`} type="button">›</button></td></tr>)}</tbody></table></div>;
 }
 
-function CampaignsView() { return <><PageTitle eyebrow="STATE ROUTING" title="Campaigns & offers" description="One referral link automatically selects the correct state experience." action="New campaign" /><div className="campaign-admin-grid">{campaigns.map((campaign) => <article className="campaign-admin-card" key={campaign.state}><div className={`campaign-state campaign-${campaign.color}`}>{campaign.state}</div><div className="campaign-active-row"><span className={campaign.active ? "active-dot" : "paused-dot"}>{campaign.active ? "Active" : "Paused"}</span><button type="button">•••</button></div><h2>{campaign.name}</h2><p>{campaign.offer}</p><dl><div><dt>Referrer</dt><dd>{campaign.reward}</dd></div><div><dt>Forms submitted</dt><dd>{campaign.leads}</dd></div><div><dt>ZIP routing</dt><dd>Configured</dd></div></dl><button className="campaign-edit" type="button">Edit campaign</button></article>)}</div></>; }
+function CampaignsView({ campaigns, onEdit }: { campaigns: Campaign[]; onEdit: (campaign: Campaign) => void }) { return <><PageTitle eyebrow="STATE ROUTING" title="Campaigns & offers" description="One referral link automatically selects the correct state experience." action="New campaign" /><div className="campaign-admin-grid">{campaigns.map((campaign) => <article className="campaign-admin-card" key={campaign.state}><div className={`campaign-state campaign-${campaign.color}`}>{campaign.state}</div><div className="campaign-active-row"><span className={campaign.active ? "active-dot" : "paused-dot"}>{campaign.active ? "Active" : "Paused"}</span><button onClick={() => onEdit(campaign)} type="button">•••</button></div><h2>{campaign.name}</h2><p>{campaign.offer}</p><dl><div><dt>Referrer</dt><dd>{campaign.reward}</dd></div><div><dt>Forms submitted</dt><dd>{campaign.leads}</dd></div><div><dt>ZIP routing</dt><dd>Configured</dd></div></dl><button className="campaign-edit" onClick={() => onEdit(campaign)} type="button">Edit campaign</button></article>)}</div></>; }
+
+function CampaignEditDrawer({ campaign, onClose, onSave }: { campaign: Campaign; onClose: () => void; onSave: (campaign: Campaign) => void }) {
+  const [form, setForm] = useState(campaign);
+  return (
+    <div className="drawer-backdrop">
+      <button className="drawer-close-backdrop" onClick={onClose} aria-label="Close campaign editor" type="button" />
+      <aside className="referral-drawer">
+        <header><div><span>{form.state}</span><h2>Edit campaign</h2></div><button onClick={onClose} type="button">×</button></header>
+        <form
+          className="settings-panel-card admin-card"
+          onSubmit={(event) => { event.preventDefault(); onSave(form); }}
+        >
+          <label>Campaign name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required /></label>
+          <label>Customer offer<input value={form.offer} onChange={(event) => setForm((current) => ({ ...current, offer: event.target.value }))} /></label>
+          <label>Referrer reward<input value={form.reward} onChange={(event) => setForm((current) => ({ ...current, reward: event.target.value }))} /></label>
+          <label className="consent-row"><input type="checkbox" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))} /> <span>Campaign is active</span></label>
+          <footer><button className="button button-secondary" onClick={onClose} type="button">Cancel</button><button className="button button-primary" type="submit">Save changes</button></footer>
+        </form>
+      </aside>
+    </div>
+  );
+}
 
 function RewardsView({ referrals, onPay }: { referrals: AdminReferral[]; onPay: (referral: AdminReferral) => void }) { return <><PageTitle eyebrow="FINANCE" title="Reward queue" description="Payments unlock only after an installation-completed signal." /><div className="reward-summary"><article><span>Eligible now</span><strong>$50</strong></article><article><span>Paid this month</span><strong>$1,350</strong></article><article><span>Blocked / pending install</span><strong>$100</strong></article></div><div className="admin-card reward-table"><ReferralTable referrals={referrals.filter((referral) => ["scheduled", "installed", "paid"].includes(referral.status))} /><div className="reward-actions">{referrals.filter((referral) => ["scheduled", "installed"].includes(referral.status)).map((referral) => <div key={referral.id}><span><strong>{referral.id}</strong> • {referral.customer}</span><button disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Waiting for installation"}</button></div>)}</div></div></>; }
 

@@ -5,6 +5,8 @@ import { AdminDashboard } from "../components/admin-dashboard";
 import { auth, requireRole, signOut } from "../lib/auth";
 import { ADMIN_ROLES } from "../lib/roles";
 import { generateTotpSecret, totpEnrollmentQrCode } from "../lib/totp";
+import { getAdminReferrals } from "../lib/admin-queries";
+import type { AdminReferral } from "../lib/admin-data";
 
 export const metadata = { title: "Referral operations" };
 
@@ -15,6 +17,11 @@ export default async function AdminPage() {
   let members: { id: string; name: string; email: string; role: string; status: string }[] = [];
   if (session?.user?.organizationId && requireRole(session, ADMIN_ROLES)) {
     members = await getDb().select().from(teamMembers).where(eq(teamMembers.organizationId, session.user.organizationId));
+  }
+
+  let referrals: AdminReferral[] = [];
+  if (session?.user?.organizationId) {
+    referrals = await getAdminReferrals(session.user.organizationId);
   }
 
   let totpEnabled = false;
@@ -39,6 +46,7 @@ export default async function AdminPage() {
       currentUser={currentUser}
       signOutAction={signOutAction}
       teamMembers={members}
+      initialReferrals={referrals}
       totpEnabled={totpEnabled}
       totpSecret={totpSecret}
       totpQrCodeDataUrl={totpQrCodeDataUrl}
