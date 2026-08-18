@@ -8,7 +8,7 @@ export type AdminReferral = {
   customer: string;
   customerEmail: string;
   phone: string;
-  state: "AZ" | "FL" | "SC" | "CO";
+  state: "AZ" | "FL";
   zip: string;
   status: ReferralStatus;
   hubspotDealId: string;
@@ -24,7 +24,6 @@ export const demoReferrals: AdminReferral[] = [
   { id: "REF-482041", code: "NV-SJ-9012", referrer: "Sandeep Jha", referrerEmail: "sandeep@example.com", customer: "Carlos Ruiz", customerEmail: "carlos@example.com", phone: "(480) 555-0114", state: "AZ", zip: "85281", status: "installed", hubspotDealId: "18471220", hubspotStage: "Closed Won", submittedAt: "Aug 6, 2026", installedAt: "Aug 9, 2026", rewardAmount: 50, syncStatus: "synced" },
   { id: "REF-479812", code: "NV-SJ-9012", referrer: "Sandeep Jha", referrerEmail: "sandeep@example.com", customer: "Avery Thomas", customerEmail: "avery@example.com", phone: "(623) 555-0160", state: "AZ", zip: "85250", status: "paid", hubspotDealId: "18398002", hubspotStage: "Closed Won", submittedAt: "Jul 24, 2026", installedAt: "Jul 29, 2026", rewardAmount: 50, syncStatus: "synced" },
   { id: "REF-482201", code: "NV-RK-1048", referrer: "Romy Kaur", referrerEmail: "romy@nuvisionautoglass.com", customer: "Maya Wilson", customerEmail: "maya@example.com", phone: "(305) 555-0131", state: "FL", zip: "33101", status: "received", hubspotDealId: "18492291", hubspotStage: "New Lead", submittedAt: "Aug 11, 2026", installedAt: null, rewardAmount: 50, syncStatus: "pending" },
-  { id: "REF-480982", code: "NV-AT-7721", referrer: "Alex Turner", referrerEmail: "alex@example.com", customer: "Jordan Lee", customerEmail: "jordan@example.com", phone: "(843) 555-0147", state: "SC", zip: "29401", status: "cancelled", hubspotDealId: "18431552", hubspotStage: "Closed Lost", submittedAt: "Aug 1, 2026", installedAt: null, rewardAmount: 50, syncStatus: "synced" },
 ];
 
 export const demoEmailEvents = [

@@ -1,5 +1,5 @@
 export type StateCampaign = {
-  state: "AZ" | "FL" | "SC" | "CO";
+  state: "AZ" | "FL";
   stateName: string;
   campaignName: string;
   serviceMessage: string;
@@ -27,24 +27,6 @@ const campaigns: Record<StateCampaign["state"], StateCampaign> = {
     referrerReward: 50,
     accent: "ocean",
   },
-  SC: {
-    state: "SC",
-    stateName: "South Carolina",
-    campaignName: "South Carolina Referrals",
-    serviceMessage: "Convenient mobile auto glass service in South Carolina.",
-    customerOffer: null,
-    referrerReward: 50,
-    accent: "blue",
-  },
-  CO: {
-    state: "CO",
-    stateName: "Colorado",
-    campaignName: "Colorado Referrals",
-    serviceMessage: "Professional windshield replacement across Colorado.",
-    customerOffer: null,
-    referrerReward: 50,
-    accent: "mountain",
-  },
 };
 
 export function campaignForZip(zip: string): StateCampaign | null {
@@ -52,8 +34,6 @@ export function campaignForZip(zip: string): StateCampaign | null {
   const prefix = Number(zip.slice(0, 3));
   if (prefix >= 850 && prefix <= 865) return campaigns.AZ;
   if (prefix >= 320 && prefix <= 349) return campaigns.FL;
-  if (prefix >= 290 && prefix <= 299) return campaigns.SC;
-  if (prefix >= 800 && prefix <= 816) return campaigns.CO;
   return null;
 }
 

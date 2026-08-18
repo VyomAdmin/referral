@@ -126,7 +126,7 @@ export function ReferralJourney({ code }: { code: string }) {
           <div className="unsupported-state">
             <span className="state-icon">⌖</span>
             <h2>We&apos;re not in that area yet.</h2>
-            <p>NuVision&apos;s referral program is currently available in Arizona, Florida, South Carolina, and Colorado.</p>
+            <p>NuVision&apos;s referral program is currently available in Arizona and Florida.</p>
             <button className="button button-secondary" type="button" onClick={() => { setUnsupported(false); setZip(""); }}>Try another ZIP</button>
           </div>
         ) : null}

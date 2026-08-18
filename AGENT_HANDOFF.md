@@ -79,8 +79,6 @@ Useful test ZIPs:
 
 - `85001` — Arizona, $50 customer benefit shown
 - `33101` — Florida, no additional customer offer
-- `29401` — South Carolina
-- `80202` — Colorado
 - `10001` — unsupported-area state
 
 ## Current mode: safe test build

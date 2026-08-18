@@ -14,15 +14,12 @@ test("routes Florida ZIP codes without a customer offer", () => {
   assert.equal(campaign?.customerOffer, null);
 });
 
-test("supports South Carolina and Colorado local communication", () => {
-  assert.equal(campaignForZip("29401")?.state, "SC");
-  assert.equal(campaignForZip("80202")?.state, "CO");
-});
-
 test("rejects malformed and unsupported ZIP codes", () => {
   assert.equal(campaignForZip("8500"), null);
   assert.equal(campaignForZip("abcde"), null);
   assert.equal(campaignForZip("10001"), null);
+  assert.equal(campaignForZip("29401"), null);
+  assert.equal(campaignForZip("80202"), null);
 });
 
 test("creates branded referral codes without personal information", () => {
