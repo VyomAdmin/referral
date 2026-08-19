@@ -17,7 +17,9 @@ type Lead = {
 
 const emptyLead: Lead = { name: "", email: "", phone: "", make: "", year: "", model: "", insurance: "" };
 
-export function ReferralJourney({ code }: { code: string }) {
+export function ReferralJourney({ code, referrerFirstName }: { code: string; referrerFirstName: string | null }) {
+  const referrerName = referrerFirstName ?? "your friend";
+  const referrerInitial = referrerFirstName ? referrerFirstName.slice(0, 2).toUpperCase() : "NV";
   const [zip, setZip] = useState("");
   const [zipError, setZipError] = useState("");
   const [campaign, setCampaign] = useState<StateCampaign | null>(null);
@@ -101,10 +103,10 @@ export function ReferralJourney({ code }: { code: string }) {
   return (
     <section className="referral-flow page-width">
       <div className="flow-intro">
-        <span className="eyebrow">A personal referral from Sandeep</span>
+        <span className="eyebrow">A personal referral from {referrerName}</span>
         <h1>Let&apos;s get you back to seeing clearly.</h1>
         <p>Start with your ZIP code so we can show the correct local service and offer.</p>
-        <div className="referrer-note"><span>SJ</span><p><strong>Sandeep referred you</strong><br />Your referral is already attached.</p></div>
+        <div className="referrer-note"><span>{referrerInitial}</span><p><strong>{referrerName} referred you</strong><br />Your referral is already attached.</p></div>
       </div>
 
       <div className="flow-panel">

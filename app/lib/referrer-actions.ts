@@ -2,9 +2,9 @@
 
 import { getDb } from "../../db/index.ts";
 import { referrers } from "../../db/schema.ts";
-import { getDefaultOrganizationId } from "./organization";
-import { createReferralCode, isValidPhone } from "./referral-rules";
-import { mintTrackerLinkAction } from "./tracker-actions";
+import { getDefaultOrganizationId } from "./organization.ts";
+import { createReferralCode, isValidPhone } from "./referral-rules.ts";
+import { mintTrackerLinkAction } from "./tracker-actions.ts";
 
 export type ReferrerRegistrationInput = { firstName: string; lastName: string; email: string; phone: string };
 
