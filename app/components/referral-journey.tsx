@@ -46,7 +46,7 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
     event.preventDefault();
     const complete = Object.values(lead).every((value) => value.trim());
     if (!complete || !/^\S+@\S+\.\S+$/.test(lead.email) || !isValidPhone(lead.phone)) {
-      setFormError("Complete every field with a valid email and a 10-digit mobile number.");
+      setFormError("Complete every field, including a valid email and a 10-digit mobile number.");
       return;
     }
     if (!consent) {

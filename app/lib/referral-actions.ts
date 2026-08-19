@@ -32,7 +32,7 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
   const phone = input.phone.trim();
 
   if (!firstName || !lastName || !/^\S+@\S+\.\S+$/.test(email) || !isValidPhone(phone)) {
-    return { error: "Complete every field with a valid email and a 10-digit mobile number." };
+    return { error: "Complete every field, including a valid email and a 10-digit mobile number." };
   }
   if (!input.consent) {
     return { error: "Please agree to the program terms to continue." };
