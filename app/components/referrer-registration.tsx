@@ -85,11 +85,11 @@ export function ReferrerRegistration() {
     <form className="signup-grid" onSubmit={submit} noValidate>
       <label>
         First name
-        <input value={form.firstName} onChange={(event) => update("firstName", event.target.value)} name="firstName" placeholder="Sandeep" autoComplete="given-name" />
+        <input value={form.firstName} onChange={(event) => update("firstName", event.target.value)} name="firstName" placeholder="Joe" autoComplete="given-name" />
       </label>
       <label>
         Last name
-        <input value={form.lastName} onChange={(event) => update("lastName", event.target.value)} name="lastName" placeholder="Jha" autoComplete="family-name" />
+        <input value={form.lastName} onChange={(event) => update("lastName", event.target.value)} name="lastName" placeholder="Root" autoComplete="family-name" />
       </label>
       <label className="field-wide">
         Email address
