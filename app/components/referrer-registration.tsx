@@ -27,7 +27,7 @@ export function ReferrerRegistration() {
   const [error, setError] = useState("");
 
   const link = useMemo(
-    () => (result ? `${typeof window === "undefined" ? "https://refer.nuvisionautoglass.com" : window.location.origin}/r/${result.code}` : ""),
+    () => (result ? `${typeof window === "undefined" ? "https://referrals.nuvisionautoglass.com" : window.location.origin}/r/${result.code}` : ""),
     [result],
   );
 

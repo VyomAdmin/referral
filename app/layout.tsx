@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "refer.nuvisionautoglass.com";
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "referrals.nuvisionautoglass.com";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   const origin = `${protocol}://${host}`;
   const description = "A simple way to share NuVision, track every referral, and receive rewards.";

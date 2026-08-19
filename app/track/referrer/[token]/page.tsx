@@ -40,7 +40,7 @@ export default async function ReferrerTrackerPage({ params }: { params: Promise<
         </div>
         <div className="tracker-share-card">
           <small>YOUR REFERRAL LINK</small>
-          <strong>refer.nuvisionautoglass.com/r/{referrer.code}</strong>
+          <strong>referrals.nuvisionautoglass.com/r/{referrer.code}</strong>
           <div><button type="button">Copy link</button><Link href={`/r/${referrer.code}`}>Preview</Link></div>
         </div>
       </section>

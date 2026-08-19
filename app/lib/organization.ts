@@ -21,7 +21,7 @@ export async function getDefaultOrganizationId() {
     slug: DEFAULT_ORGANIZATION_SLUG,
     name: "NuVision Auto Glass",
     brandName: "NuVision",
-    referralDomain: "refer.nuvisionautoglass.com",
+    referralDomain: "referrals.nuvisionautoglass.com",
   });
   return id;
 }
