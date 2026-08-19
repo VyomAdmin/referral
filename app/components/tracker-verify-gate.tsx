@@ -2,20 +2,27 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { verifyReferrerAccessAction } from "../lib/tracker-verification.ts";
+import { verifyCustomerAccessAction, verifyReferrerAccessAction } from "../lib/tracker-verification.ts";
 
-export function ReferrerVerifyGate({ token }: { token: string }) {
+const copy = {
+  referrer: { heading: "Confirm your details to view referrals", body: "Enter the email and phone number you signed up with. This keeps your referral activity private even if the tracking link is shared or found.", buttonLabel: "View my referrals" },
+  customer: { heading: "Confirm your details to view your service request", body: "Enter the email and phone number you used when you were referred. This keeps your service details private even if the tracking link is shared or found.", buttonLabel: "View my service request" },
+} as const;
+
+export function TrackerVerifyGate({ kind, token }: { kind: "referrer" | "customer"; token: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const text = copy[kind];
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setPending(true);
     setError("");
-    const result = await verifyReferrerAccessAction(token, email, phone);
+    const action = kind === "referrer" ? verifyReferrerAccessAction : verifyCustomerAccessAction;
+    const result = await action(token, email, phone);
     setPending(false);
     if (!result.ok) {
       setError(result.error);
@@ -29,8 +36,8 @@ export function ReferrerVerifyGate({ token }: { token: string }) {
       <div className="flow-panel">
         <form className="zip-form" onSubmit={handleSubmit} noValidate>
           <span className="step-kicker">VERIFY IT&apos;S YOU</span>
-          <h2>Confirm your details to view referrals</h2>
-          <p>Enter the email and phone number you signed up with. This keeps your referral activity private even if the tracking link is shared or found.</p>
+          <h2>{text.heading}</h2>
+          <p>{text.body}</p>
           <label>
             Email address
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" required />
@@ -40,7 +47,7 @@ export function ReferrerVerifyGate({ token }: { token: string }) {
             <input value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="0123" required />
           </label>
           {error ? <p className="form-error" role="alert">{error}</p> : null}
-          <button className="button button-primary" type="submit" disabled={pending}>{pending ? "Checking…" : "View my referrals"}</button>
+          <button className="button button-primary" type="submit" disabled={pending}>{pending ? "Checking…" : text.buttonLabel}</button>
         </form>
       </div>
     </section>

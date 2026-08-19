@@ -1,6 +1,8 @@
 import { InvalidTracker, publicStages, StatusTimeline, TrackerHeader } from "../../../components/tracker";
+import { TrackerVerifyGate } from "../../../components/tracker-verify-gate";
 import { verifyTrackerToken } from "../../../lib/tracker-tokens";
 import { getCustomerTrackerData } from "../../../lib/tracker-data";
+import { isCustomerAccessVerified } from "../../../lib/tracker-verification";
 
 export const metadata = { title: "Track your service" };
 
@@ -8,6 +10,16 @@ export default async function CustomerTrackerPage({ params }: { params: Promise<
   const { token } = await params;
   const match = await verifyTrackerToken(token, "customer");
   if (!match?.referralId) return <InvalidTracker />;
+
+  const verified = await isCustomerAccessVerified(token);
+  if (!verified) {
+    return (
+      <main className="tracker-page">
+        <TrackerHeader label="Customer tracker" />
+        <TrackerVerifyGate kind="customer" token={token} />
+      </main>
+    );
+  }
 
   const referral = await getCustomerTrackerData(match.referralId);
   if (!referral) return <InvalidTracker />;

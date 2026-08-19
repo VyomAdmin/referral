@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { InvalidTracker, publicStages, StatusTimeline, TrackerHeader } from "../../../components/tracker";
-import { ReferrerVerifyGate } from "../../../components/referrer-verify-gate";
+import { TrackerVerifyGate } from "../../../components/tracker-verify-gate";
 import { verifyTrackerToken } from "../../../lib/tracker-tokens";
 import { getReferrerTrackerData } from "../../../lib/tracker-data";
 import { isReferrerAccessVerified } from "../../../lib/tracker-verification";
@@ -17,7 +17,7 @@ export default async function ReferrerTrackerPage({ params }: { params: Promise<
     return (
       <main className="tracker-page">
         <TrackerHeader label="Referrer tracker" />
-        <ReferrerVerifyGate token={token} />
+        <TrackerVerifyGate kind="referrer" token={token} />
       </main>
     );
   }
