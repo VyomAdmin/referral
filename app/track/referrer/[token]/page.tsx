@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { InvalidTracker, publicStages, StatusTimeline, TrackerHeader } from "../../../components/tracker";
+import { ReferrerVerifyGate } from "../../../components/referrer-verify-gate";
 import { verifyTrackerToken } from "../../../lib/tracker-tokens";
 import { getReferrerTrackerData } from "../../../lib/tracker-data";
+import { isReferrerAccessVerified } from "../../../lib/tracker-verification";
 
 export const metadata = { title: "Track your referrals" };
 
@@ -9,6 +11,16 @@ export default async function ReferrerTrackerPage({ params }: { params: Promise<
   const { token } = await params;
   const match = await verifyTrackerToken(token, "referrer");
   if (!match?.referrerId) return <InvalidTracker />;
+
+  const verified = await isReferrerAccessVerified(token);
+  if (!verified) {
+    return (
+      <main className="tracker-page">
+        <TrackerHeader label="Referrer tracker" />
+        <ReferrerVerifyGate token={token} />
+      </main>
+    );
+  }
 
   const data = await getReferrerTrackerData(match.referrerId);
   if (!data) return <InvalidTracker />;

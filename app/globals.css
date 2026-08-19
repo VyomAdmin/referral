@@ -292,6 +292,8 @@ a { color: inherit; }
 .flow-complete > small { margin-top: 15px; }
 
 .tracker-page { min-height: 100vh; background: var(--wash); }
+.tracker-verify { display: flex; justify-content: center; padding-block: 62px; }
+.tracker-verify .flow-panel { max-width: 460px; width: 100%; }
 .tracker-header { height: 78px; display: flex; align-items: center; border-bottom: 1px solid var(--line); background: var(--surface); }
 .tracker-header-inner { display: flex; align-items: center; justify-content: space-between; }
 .tracker-header-actions { display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 12px; }
