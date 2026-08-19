@@ -4,12 +4,14 @@ import { useMemo, useState } from "react";
 import { Brand } from "./brand";
 import { AddUserForm } from "./add-user-form";
 import { TotpEnrollmentForm } from "./totp-enrollment-form";
-import { AdminReferral, ReferralStatus, demoEmailEvents, demoTeam } from "../lib/admin-data";
+import { AdminReferral, ReferralStatus } from "../lib/admin-data";
+import type { AdminEmailEvent, AdminReferrerStats } from "../lib/admin-queries";
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
+import { markReferralPaidAction } from "../lib/admin-actions";
 import { ADMIN_ROLES } from "../lib/roles";
 
-type Section = "overview" | "referrals" | "campaigns" | "rewards" | "emails" | "analytics" | "team" | "integrations" | "settings";
+type Section = "overview" | "referrals" | "campaigns" | "rewards" | "emails" | "analytics" | "integrations" | "settings";
 
 const sections: { key: Section; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "⌂" },
@@ -18,9 +20,15 @@ const sections: { key: Section; label: string; icon: string }[] = [
   { key: "rewards", label: "Rewards", icon: "$" },
   { key: "emails", label: "Emails", icon: "✉" },
   { key: "analytics", label: "Analytics", icon: "▥" },
-  { key: "team", label: "Team & roles", icon: "♙" },
   { key: "integrations", label: "Integrations", icon: "⌁" },
   { key: "settings", label: "Settings", icon: "⚙" },
+];
+
+const ROLE_DESCRIPTIONS: [string, string][] = [
+  ["Owner / Admin", "Full access, settings, integrations, and team permissions."],
+  ["CRM Operations", "Customers, referrals, HubSpot sync, and timelines."],
+  ["Rewards / Finance", "Eligibility review, payout status, and exports."],
+  ["Marketing", "Campaigns, forms, offers, and email templates."],
 ];
 
 type TeamMember = { id: string; name: string; email: string; role: string; status: string };
@@ -36,11 +44,13 @@ function initials(name: string) {
   return name.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 }
 
-export function AdminDashboard({ currentUser, signOutAction, teamMembers, initialReferrals, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
+export function AdminDashboard({ currentUser, signOutAction, teamMembers, initialReferrals, referrerStats, emailEvents, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
   currentUser: { name: string; role: string };
   signOutAction: () => Promise<void>;
   teamMembers: TeamMember[];
   initialReferrals: AdminReferral[];
+  referrerStats: AdminReferrerStats;
+  emailEvents: AdminEmailEvent[];
   totpEnabled: boolean;
   totpSecret: string;
   totpQrCodeDataUrl: string;
@@ -62,9 +72,14 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
     return matches;
   }, [query, referrals, stateFilter, statusFilter]);
 
-  function markPaid(referral: AdminReferral) {
+  async function markPaid(referral: AdminReferral) {
     if (!canMarkRewardPaid(referral)) {
       setNotice("Payment is blocked until installation completion is confirmed.");
+      return;
+    }
+    const result = await markReferralPaidAction(referral.id);
+    if (!result.ok) {
+      setNotice(result.error);
       return;
     }
     setReferrals((current) => current.map((item) => item.id === referral.id ? { ...item, status: "paid" } : item));
@@ -111,15 +126,14 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
         {notice ? <div className="admin-notice" role="status"><span>✓</span>{notice}<button onClick={() => setNotice("")} type="button">×</button></div> : null}
 
         <div className="admin-workspace">
-          {section === "overview" ? <Overview onViewReferrals={() => setSection("referrals")} referrals={referrals} /> : null}
+          {section === "overview" ? <Overview onViewReferrals={() => setSection("referrals")} referrals={referrals} referrerStats={referrerStats} teamMembers={teamMembers} /> : null}
           {section === "referrals" ? (
             <ReferralsView query={query} setQuery={setQuery} stateFilter={stateFilter} setStateFilter={setStateFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} referrals={filteredReferrals} onSelect={setSelected} />
           ) : null}
           {section === "campaigns" ? <CampaignsView campaigns={campaigns} onEdit={setEditingCampaign} /> : null}
           {section === "rewards" ? <RewardsView referrals={referrals} onPay={markPaid} /> : null}
-          {section === "emails" ? <EmailsView /> : null}
-          {section === "analytics" ? <AnalyticsView /> : null}
-          {section === "team" ? <TeamView /> : null}
+          {section === "emails" ? <EmailsView emailEvents={emailEvents} /> : null}
+          {section === "analytics" ? <AnalyticsView referrals={referrals} /> : null}
           {section === "integrations" ? <IntegrationsView /> : null}
           {section === "settings" ? (
             <SettingsView currentUserRole={currentUser.role} teamMembers={teamMembers} totpEnabled={totpEnabled} totpSecret={totpSecret} totpQrCodeDataUrl={totpQrCodeDataUrl} />
@@ -137,23 +151,57 @@ function PageTitle({ eyebrow, title, description, action }: { eyebrow: string; t
   return <div className="admin-page-title"><div><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{action ? <button className="admin-primary-button" type="button">+ {action}</button> : null}</div>;
 }
 
-function Overview({ onViewReferrals, referrals }: { onViewReferrals: () => void; referrals: AdminReferral[] }) {
+function Overview({ onViewReferrals, referrals, referrerStats, teamMembers }: { onViewReferrals: () => void; referrals: AdminReferral[]; referrerStats: AdminReferrerStats; teamMembers: TeamMember[] }) {
+  const today = useMemo(() => new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), []);
+  const [now] = useState(() => Date.now());
+
+  const stats = useMemo(() => {
+    const formsSubmitted = referrals.length;
+    const appointments = referrals.filter((r) => ["scheduled", "installed", "paid"].includes(r.status)).length;
+    const installed = referrals.filter((r) => ["installed", "paid"].includes(r.status)).length;
+    const paid = referrals.filter((r) => r.status === "paid").length;
+    const outstanding = referrals.filter((r) => r.status === "installed");
+    const outstandingAmount = outstanding.reduce((sum, r) => sum + r.rewardAmount, 0);
+    const paidAllTime = referrals.filter((r) => r.status === "paid").reduce((sum, r) => sum + r.rewardAmount, 0);
+    const syncIssues = referrals.filter((r) => r.syncStatus !== "synced");
+    const pendingInvitations = teamMembers.filter((m) => m.status === "invited").length;
+    const formToInstallRate = formsSubmitted ? Math.round((installed / formsSubmitted) * 1000) / 10 : 0;
+    const oldestOutstandingDays = outstanding.length
+      ? Math.max(0, Math.floor((now - Math.min(...outstanding.map((r) => new Date(r.submittedAt).getTime()))) / 86400000))
+      : 0;
+    return { formsSubmitted, appointments, installed, paid, outstanding, outstandingAmount, paidAllTime, syncIssues, pendingInvitations, formToInstallRate, oldestOutstandingDays };
+  }, [referrals, teamMembers, now]);
+
+  const funnel = [
+    { label: "Forms submitted", value: stats.formsSubmitted },
+    { label: "Appointments", value: stats.appointments },
+    { label: "Installations", value: stats.installed },
+    { label: "Rewards paid", value: stats.paid },
+  ];
+  const funnelMax = stats.formsSubmitted || 1;
+
+  const attentionItems = [
+    stats.outstanding.length > 0 ? { key: "rewards", icon: "warning-icon", iconLabel: "$", title: `${stats.outstanding.length} reward${stats.outstanding.length === 1 ? "" : "s"} await payment`, detail: `Oldest eligible for ${stats.oldestOutstandingDays} day${stats.oldestOutstandingDays === 1 ? "" : "s"}`, action: "Review" } : null,
+    stats.syncIssues.length > 0 ? { key: "sync", icon: "sync-icon", iconLabel: "↻", title: `${stats.syncIssues.length} HubSpot sync${stats.syncIssues.length === 1 ? "" : "s"} pending`, detail: stats.syncIssues[0]?.id ?? "", action: "Retry" } : null,
+    stats.pendingInvitations > 0 ? { key: "invites", icon: "team-icon", iconLabel: String(stats.pendingInvitations), title: `${stats.pendingInvitations} teammate invitation${stats.pendingInvitations === 1 ? "" : "s"}`, detail: "Waiting for acceptance", action: "View" } : null,
+  ].filter((item): item is NonNullable<typeof item> => item !== null);
+
   return <>
-    <PageTitle eyebrow="Tuesday, August 11" title="Referral operations" description="A clear view from first share to final reward." action="New campaign" />
+    <PageTitle eyebrow={today} title="Referral operations" description="A clear view from first share to final reward." action="New campaign" />
     <div className="admin-metric-grid">
-      <article><div><span>Active referrers</span><small className="trend-up">+12.4%</small></div><strong>440</strong><p>38 joined this month</p></article>
-      <article><div><span>Referral forms</span><small className="trend-up">+8.1%</small></div><strong>506</strong><p>291 installation-qualified</p></article>
-      <article><div><span>Installed</span><small className="trend-up">+5.6%</small></div><strong>291</strong><p>57.5% form-to-install</p></article>
-      <article className="admin-metric-money"><div><span>Rewards outstanding</span><small>18 rewards</small></div><strong>$900</strong><p>$7,250 paid all time</p></article>
+      <article><span>Active referrers</span><strong>{referrerStats.total}</strong><p>{referrerStats.joinedThisMonth} joined this month</p></article>
+      <article><span>Referral forms</span><strong>{stats.formsSubmitted}</strong><p>{stats.installed} installation-qualified</p></article>
+      <article><span>Installed</span><strong>{stats.installed}</strong><p>{stats.formToInstallRate}% form-to-install</p></article>
+      <article className="admin-metric-money"><span>Rewards outstanding</span><strong>${stats.outstandingAmount}</strong><p>${stats.paidAllTime} paid all time</p></article>
     </div>
     <div className="overview-grid">
-      <section className="admin-card performance-card"><div className="admin-card-head"><div><span>PERFORMANCE</span><h2>Referral funnel</h2></div><select><option>Last 30 days</option></select></div><div className="funnel-bars">
-        {[{ label: "Forms submitted", value: 506, width: "100%" }, { label: "Appointments", value: 374, width: "74%" }, { label: "Installations", value: 291, width: "57.5%" }, { label: "Rewards paid", value: 273, width: "54%" }].map((bar) => <div key={bar.label}><span>{bar.label}</span><div><i style={{ width: bar.width }} /></div><strong>{bar.value}</strong></div>)}
+      <section className="admin-card performance-card"><div className="admin-card-head"><div><span>PERFORMANCE</span><h2>Referral funnel</h2></div></div><div className="funnel-bars">
+        {funnel.map((bar) => <div key={bar.label}><span>{bar.label}</span><div><i style={{ width: `${Math.round((bar.value / funnelMax) * 100)}%` }} /></div><strong>{bar.value}</strong></div>)}
       </div><button className="text-button" onClick={onViewReferrals} type="button">View all referrals →</button></section>
-      <section className="admin-card activity-card"><div className="admin-card-head"><div><span>LIVE ACTIVITY</span><h2>Needs attention</h2></div><span className="alert-count">4</span></div>
-        <article><span className="attention-icon warning-icon">$</span><div><strong>18 rewards await payment</strong><small>Oldest eligible for 3 days</small></div><button type="button">Review</button></article>
-        <article><span className="attention-icon sync-icon">↻</span><div><strong>1 HubSpot sync needs retry</strong><small>REF-482202 • 14 minutes ago</small></div><button type="button">Retry</button></article>
-        <article><span className="attention-icon team-icon">2</span><div><strong>Two teammate invitations</strong><small>Waiting for acceptance</small></div><button type="button">View</button></article>
+      <section className="admin-card activity-card"><div className="admin-card-head"><div><span>LIVE ACTIVITY</span><h2>Needs attention</h2></div><span className="alert-count">{attentionItems.length}</span></div>
+        {attentionItems.length === 0 ? <p className="empty-table">Nothing needs attention right now.</p> : attentionItems.map((item) => (
+          <article key={item.key}><span className={`attention-icon ${item.icon}`}>{item.iconLabel}</span><div><strong>{item.title}</strong><small>{item.detail}</small></div><button type="button">{item.action}</button></article>
+        ))}
       </section>
     </div>
     <div className="admin-card recent-card"><div className="admin-card-head"><div><span>LATEST REFERRALS</span><h2>Recent activity</h2></div><button className="text-button" onClick={onViewReferrals} type="button">See all →</button></div><ReferralTable referrals={referrals.slice(0, 4)} />{referrals.length === 0 ? <p className="empty-table"><strong>No referrals yet</strong></p> : null}</div>
@@ -192,13 +240,71 @@ function CampaignEditDrawer({ campaign, onClose, onSave }: { campaign: Campaign;
   );
 }
 
-function RewardsView({ referrals, onPay }: { referrals: AdminReferral[]; onPay: (referral: AdminReferral) => void }) { return <><PageTitle eyebrow="FINANCE" title="Reward queue" description="Payments unlock only after an installation-completed signal." /><div className="reward-summary"><article><span>Eligible now</span><strong>$50</strong></article><article><span>Paid this month</span><strong>$1,350</strong></article><article><span>Blocked / pending install</span><strong>$100</strong></article></div><div className="admin-card reward-table"><ReferralTable referrals={referrals.filter((referral) => ["scheduled", "installed", "paid"].includes(referral.status))} /><div className="reward-actions">{referrals.filter((referral) => ["scheduled", "installed"].includes(referral.status)).map((referral) => <div key={referral.id}><span><strong>{referral.id}</strong> • {referral.customer}</span><button disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Waiting for installation"}</button></div>)}</div></div></>; }
+function RewardsView({ referrals, onPay }: { referrals: AdminReferral[]; onPay: (referral: AdminReferral) => void }) {
+  const eligibleNow = referrals.filter((r) => r.status === "installed").reduce((sum, r) => sum + r.rewardAmount, 0);
+  const paidAllTime = referrals.filter((r) => r.status === "paid").reduce((sum, r) => sum + r.rewardAmount, 0);
+  const blocked = referrals.filter((r) => r.status === "received" || r.status === "scheduled").reduce((sum, r) => sum + r.rewardAmount, 0);
 
-function EmailsView() { return <><PageTitle eyebrow="COMMUNICATIONS" title="Email activity" description="Referral-specific transactional emails, delivery, and tracker clicks." action="Edit templates" /><div className="admin-metric-grid email-metrics"><article><div><span>Delivered</span><small className="trend-up">98.7%</small></div><strong>1,248</strong><p>Last 30 days</p></article><article><div><span>Opened</span><small>74.2%</small></div><strong>926</strong><p>Industry-safe tracking</p></article><article><div><span>Tracker clicks</span><small>41.8%</small></div><strong>522</strong><p>Secure links opened</p></article><article><div><span>Bounced</span><small>0.8%</small></div><strong>10</strong><p>Needs review</p></article></div><div className="admin-card"><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Email</th><th>Recipient</th><th>Template</th><th>Referral</th><th>Status</th><th>Sent</th></tr></thead><tbody>{demoEmailEvents.map((email) => <tr key={email.id}><td><strong>{email.id}</strong></td><td><strong>{email.recipient}</strong></td><td>{email.template}</td><td><span className="hubspot-id">{email.related}</span></td><td><span className="admin-status status-installed">{email.status}</span></td><td>{email.sent}</td></tr>)}</tbody></table></div></div></>; }
+  return <><PageTitle eyebrow="FINANCE" title="Reward queue" description="Payments unlock only after an installation-completed signal." /><div className="reward-summary"><article><span>Eligible now</span><strong>${eligibleNow}</strong></article><article><span>Paid all time</span><strong>${paidAllTime}</strong></article><article><span>Blocked / pending install</span><strong>${blocked}</strong></article></div><div className="admin-card reward-table"><ReferralTable referrals={referrals.filter((referral) => ["scheduled", "installed", "paid"].includes(referral.status))} />{referrals.length === 0 ? <div className="empty-table"><strong>No referrals yet</strong></div> : null}<div className="reward-actions">{referrals.filter((referral) => ["scheduled", "installed"].includes(referral.status)).map((referral) => <div key={referral.id}><span><strong>{referral.id}</strong> • {referral.customer}</span><button disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Waiting for installation"}</button></div>)}</div></div></>;
+}
 
-function AnalyticsView() { return <><PageTitle eyebrow="PERFORMANCE" title="Referral analytics" description="Understand volume, conversion, markets, and reward efficiency." /><div className="analytics-grid"><section className="admin-card"><div className="admin-card-head"><div><span>MONTHLY VOLUME</span><h2>Forms and installations</h2></div><select><option>Last 6 months</option></select></div><div className="bar-chart">{[43, 58, 51, 72, 64, 86].map((height, index) => <div key={index}><i style={{ height: `${height}%` }} /><b style={{ height: `${height * .58}%` }} /><span>{["Mar", "Apr", "May", "Jun", "Jul", "Aug"][index]}</span></div>)}</div></section><section className="admin-card market-performance"><div className="admin-card-head"><div><span>BY MARKET</span><h2>Installation conversion</h2></div></div>{[["Arizona", "62%", 62], ["Florida", "54%", 54]].map(([name, value, width]) => <div key={String(name)}><span>{name}</span><div><i style={{ width: `${width}%` }} /></div><strong>{value}</strong></div>)}</section></div></>; }
+function EmailsView({ emailEvents }: { emailEvents: AdminEmailEvent[] }) {
+  const total = emailEvents.length;
+  const delivered = emailEvents.filter((e) => ["delivered", "opened", "clicked"].includes(e.status)).length;
+  const opened = emailEvents.filter((e) => ["opened", "clicked"].includes(e.status)).length;
+  const clicked = emailEvents.filter((e) => e.status === "clicked").length;
+  const bounced = emailEvents.filter((e) => e.status === "bounced").length;
+  const pct = (count: number) => total ? `${Math.round((count / total) * 1000) / 10}%` : "—";
 
-function TeamView() { return <><PageTitle eyebrow="ACCESS CONTROL" title="Team & roles" description="Control operational access and require secure sign-in." action="Invite teammate" /><div className="admin-card"><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Teammate</th><th>Role</th><th>Status</th><th>2FA</th><th /></tr></thead><tbody>{demoTeam.map((member) => <tr key={member.email}><td><strong>{member.name}</strong><small>{member.email}</small></td><td>{member.role}</td><td><span className={`admin-status ${member.status === "Active" ? "status-installed" : "status-scheduled"}`}>{member.status}</span></td><td><span className={member.twoFactor ? "two-factor-on" : "two-factor-off"}>{member.twoFactor ? "Enabled" : "Required"}</span></td><td><button type="button">•••</button></td></tr>)}</tbody></table></div></div><div className="role-grid">{[["Owner / Admin", "Full access, settings, integrations, and team permissions."], ["CRM Operations", "Customers, referrals, HubSpot sync, and timelines."], ["Rewards / Finance", "Eligibility review, payout status, and exports."], ["Marketing", "Campaigns, forms, offers, and email templates."]].map(([role, copy]) => <article className="admin-card" key={role}><strong>{role}</strong><p>{copy}</p><button type="button">Edit permissions</button></article>)}</div></>; }
+  return <><PageTitle eyebrow="COMMUNICATIONS" title="Email activity" description="Referral-specific transactional emails, delivery, and tracker clicks." /><div className="admin-metric-grid email-metrics"><article><span>Delivered</span><strong>{delivered}</strong><p>{pct(delivered)} of sent</p></article><article><span>Opened</span><strong>{opened}</strong><p>{pct(opened)} of sent</p></article><article><span>Tracker clicks</span><strong>{clicked}</strong><p>{pct(clicked)} of sent</p></article><article><span>Bounced</span><strong>{bounced}</strong><p>{pct(bounced)} of sent</p></article></div><div className="admin-card"><div className="admin-table-scroll"><table className="admin-table"><thead><tr><th>Recipient</th><th>Template</th><th>Referral</th><th>Status</th><th>Sent</th></tr></thead><tbody>{emailEvents.map((email) => <tr key={email.id}><td><strong>{email.recipient}</strong></td><td>{email.templateKey}</td><td>{email.referralId ? <span className="hubspot-id">{email.referralId}</span> : "—"}</td><td><span className="admin-status status-installed">{email.status}</span></td><td>{new Date(email.sentAt).toLocaleString()}</td></tr>)}</tbody></table></div>{emailEvents.length === 0 ? <p className="empty-table"><strong>No email activity yet</strong><span>Connect a transactional email provider to start sending.</span></p> : null}</div></>;
+}
+
+function AnalyticsView({ referrals }: { referrals: AdminReferral[] }) {
+  const monthly = useMemo(() => {
+    const now = new Date();
+    const buckets = new Map<string, { forms: number; installed: number }>();
+    const keys: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      keys.push(key);
+      buckets.set(key, { forms: 0, installed: 0 });
+    }
+    referrals.forEach((referral) => {
+      const submitted = new Date(referral.submittedAt);
+      const key = `${submitted.getFullYear()}-${submitted.getMonth()}`;
+      const bucket = buckets.get(key);
+      if (!bucket) return;
+      bucket.forms += 1;
+      if (referral.status === "installed" || referral.status === "paid") bucket.installed += 1;
+    });
+    const max = Math.max(1, ...keys.map((key) => buckets.get(key)?.forms ?? 0));
+    return keys.map((key) => {
+      const [year, month] = key.split("-").map(Number);
+      const bucket = buckets.get(key)!;
+      return {
+        label: new Date(year, month, 1).toLocaleDateString("en-US", { month: "short" }),
+        forms: bucket.forms,
+        installed: bucket.installed,
+        formsHeight: Math.round((bucket.forms / max) * 100),
+        installedHeight: Math.round((bucket.installed / max) * 100),
+      };
+    });
+  }, [referrals]);
+
+  const marketBreakdown = useMemo(() => {
+    const byState = new Map<string, { total: number; installed: number }>();
+    referrals.forEach((referral) => {
+      const entry = byState.get(referral.state) ?? { total: 0, installed: 0 };
+      entry.total += 1;
+      if (referral.status === "installed" || referral.status === "paid") entry.installed += 1;
+      byState.set(referral.state, entry);
+    });
+    return Array.from(byState.entries()).map(([state, { total, installed }]) => ({ state, rate: total ? Math.round((installed / total) * 100) : 0 }));
+  }, [referrals]);
+
+  return <><PageTitle eyebrow="PERFORMANCE" title="Referral analytics" description="Understand volume, conversion, markets, and reward efficiency." /><div className="analytics-grid"><section className="admin-card"><div className="admin-card-head"><div><span>MONTHLY VOLUME</span><h2>Forms and installations</h2></div></div><div className="bar-chart">{monthly.map((bar) => <div key={bar.label}><i style={{ height: `${bar.formsHeight}%` }} /><b style={{ height: `${bar.installedHeight}%` }} /><span>{bar.label}</span></div>)}</div></section><section className="admin-card market-performance"><div className="admin-card-head"><div><span>BY MARKET</span><h2>Installation conversion</h2></div></div>{marketBreakdown.length === 0 ? <p className="empty-table">No referrals yet.</p> : marketBreakdown.map(({ state, rate }) => <div key={state}><span>{state}</span><div><i style={{ width: `${rate}%` }} /></div><strong>{rate}%</strong></div>)}</section></div></>;
+}
 
 function IntegrationsView() { return <><PageTitle eyebrow="SYSTEM HEALTH" title="Integrations" description="Test mappings and workflows before your developers connect production services." /><div className="integration-grid"><article className="admin-card integration-card"><div className="integration-logo hubspot-logo">H</div><div><span className="paused-dot">Simulated</span><h2>HubSpot CRM</h2><p>Contacts, deals, stage changes, and installation completion use seeded test events.</p></div><dl><div><dt>CRM writes</dt><dd>Disabled</dd></div><div><dt>Webhook endpoint</dt><dd>Awaiting secret</dd></div><div><dt>Test mapping</dt><dd>15 checks passed</dd></div></dl><button type="button">Review mapping</button></article><article className="admin-card integration-card"><div className="integration-logo email-logo">@</div><div><span className="paused-dot">Simulated</span><h2>Transactional email</h2><p>Templates and event previews are active. No messages leave the application.</p></div><dl><div><dt>Live sending</dt><dd>Disabled</dd></div><div><dt>Templates</dt><dd>6 configured</dd></div><div><dt>Provider</dt><dd>Choose before launch</dd></div></dl><button type="button">Preview templates</button></article></div></>; }
 
@@ -239,6 +345,8 @@ function SettingsView({ currentUserRole, teamMembers, totpEnabled, totpSecret, t
         </div>
         <h2 className="settings-subheading">Add user</h2>
         <div className="admin-card settings-panel-card"><AddUserForm /></div>
+        <h2 className="settings-subheading">Roles</h2>
+        <div className="role-grid">{ROLE_DESCRIPTIONS.map(([role, copy]) => <article className="admin-card" key={role}><strong>{role}</strong><p>{copy}</p></article>)}</div>
       </>
     ) : null}
     {tab === "security" ? (

@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
-import { campaigns, referrals, referrers } from "../../db/schema.ts";
+import { campaigns, emailEvents, referrals, referrers } from "../../db/schema.ts";
 import type { AdminReferral } from "./admin-data";
 
 export async function getAdminReferrals(organizationId: string): Promise<AdminReferral[]> {
@@ -49,4 +49,25 @@ export async function getAdminReferrals(organizationId: string): Promise<AdminRe
     rewardAmount: (row.referrerRewardCents ?? 5000) / 100,
     syncStatus: (row.syncStatus as AdminReferral["syncStatus"]) ?? "pending",
   }));
+}
+
+export type AdminReferrerStats = { total: number; joinedThisMonth: number };
+
+export async function getAdminReferrerStats(organizationId: string): Promise<AdminReferrerStats> {
+  const rows = await getDb().select({ createdAt: referrers.createdAt }).from(referrers).where(eq(referrers.organizationId, organizationId));
+  const now = new Date();
+  const joinedThisMonth = rows.filter((row) => row.createdAt.getFullYear() === now.getFullYear() && row.createdAt.getMonth() === now.getMonth()).length;
+  return { total: rows.length, joinedThisMonth };
+}
+
+export type AdminEmailEvent = { id: string; recipient: string; templateKey: string; referralId: string | null; status: string; sentAt: string };
+
+export async function getAdminEmailEvents(organizationId: string): Promise<AdminEmailEvent[]> {
+  const rows = await getDb()
+    .select({ id: emailEvents.id, recipient: emailEvents.recipient, templateKey: emailEvents.templateKey, referralId: emailEvents.referralId, status: emailEvents.status, sentAt: emailEvents.createdAt })
+    .from(emailEvents)
+    .where(eq(emailEvents.organizationId, organizationId))
+    .orderBy(desc(emailEvents.createdAt));
+
+  return rows.map((row) => ({ ...row, sentAt: row.sentAt.toISOString() }));
 }
