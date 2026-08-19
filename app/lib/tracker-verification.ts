@@ -25,6 +25,17 @@ function cookieNameForToken(kind: TrackerTokenKind, rawToken: string) {
   return `${COOKIE_PREFIX}${kind}_${hashSecureToken(rawToken).slice(0, 16)}`;
 }
 
+export async function markTrackerVerified(kind: TrackerTokenKind, rawToken: string) {
+  const store = await cookies();
+  store.set(cookieNameForToken(kind, rawToken), signToken(hashSecureToken(rawToken)), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: `/track/${kind}/${rawToken}`,
+    maxAge: VERIFICATION_TTL_SECONDS,
+  });
+}
+
 async function getContact(kind: TrackerTokenKind, rawToken: string) {
   const match = await verifyTrackerToken(rawToken, kind);
   const db = getDb();
@@ -67,15 +78,7 @@ async function verifyTrackerAccessAction(kind: TrackerTokenKind, rawToken: strin
     return { ok: false, error: "Those details don't match our records. Double-check the email and phone number used at signup." };
   }
 
-  const store = await cookies();
-  store.set(cookieNameForToken(kind, rawToken), signToken(hashSecureToken(rawToken)), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: `/track/${kind}/${rawToken}`,
-    maxAge: VERIFICATION_TTL_SECONDS,
-  });
-
+  await markTrackerVerified(kind, rawToken);
   return { ok: true };
 }
 
