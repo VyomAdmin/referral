@@ -3,10 +3,10 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrals, referrers } from "../../db/schema.ts";
-import { getDefaultOrganizationId } from "./organization";
-import { getOrCreateCampaignId } from "./campaign-directory";
-import { isValidPhone } from "./referral-rules";
-import { mintTrackerLinkAction } from "./tracker-actions";
+import { getDefaultOrganizationId } from "./organization.ts";
+import { getOrCreateCampaignId } from "./campaign-directory.ts";
+import { isValidPhone } from "./referral-rules.ts";
+import { mintTrackerLinkAction } from "./tracker-actions.ts";
 
 export type CustomerReferralInput = {
   referralCode: string;
@@ -20,6 +20,7 @@ export type CustomerReferralInput = {
   vehicleYear?: string;
   vehicleModel?: string;
   insuranceProvider?: string;
+  consent: boolean;
 };
 
 export type CustomerReferralResult = { referralId: string; trackPath: string } | { error: string };
@@ -32,6 +33,9 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
 
   if (!firstName || !lastName || !/^\S+@\S+\.\S+$/.test(email) || !isValidPhone(phone)) {
     return { error: "Complete every field with a valid email and a 10-digit mobile number." };
+  }
+  if (!input.consent) {
+    return { error: "Please agree to the program terms to continue." };
   }
 
   const organizationId = await getDefaultOrganizationId();
@@ -63,6 +67,7 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
     vehicleYear: input.vehicleYear || null,
     vehicleModel: input.vehicleModel || null,
     insuranceProvider: input.insuranceProvider || null,
+    consentGivenAt: new Date(),
     publicStatus: "received",
   });
 

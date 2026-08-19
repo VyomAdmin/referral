@@ -22,6 +22,13 @@
       "when": 1786800842930,
       "tag": "0002_deep_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787146019557,
+      "tag": "0003_careful_zeigeist",
+      "breakpoints": true
     }
   ]
 }

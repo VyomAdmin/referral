@@ -57,6 +57,7 @@ export const referrals = pgTable("referrals", {
   vehicleYear: text("vehicle_year"),
   vehicleModel: text("vehicle_model"),
   insuranceProvider: text("insurance_provider"),
+  consentGivenAt: timestamp("consent_given_at", { withTimezone: true }).notNull(),
   publicStatus: text("public_status").notNull().default("received"),
   installationCompletedAt: timestamp("installation_completed_at", { withTimezone: true }),
   hubspotContactId: text("hubspot_contact_id"),

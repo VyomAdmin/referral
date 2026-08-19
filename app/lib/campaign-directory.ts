@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { campaigns } from "../../db/schema.ts";
-import { supportedCampaigns } from "./referral-rules";
+import { supportedCampaigns } from "./referral-rules.ts";
 
 // Campaign rows are provisioned lazily from the static state-offer rules the first
 // time a state is referenced, so the always-current copy in referral-rules.ts stays

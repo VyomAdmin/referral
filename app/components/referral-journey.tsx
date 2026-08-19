@@ -65,6 +65,7 @@ export function ReferralJourney({ code }: { code: string }) {
       vehicleYear: lead.year,
       vehicleModel: lead.model,
       insuranceProvider: lead.insurance,
+      consent,
     });
     if ("error" in outcome) {
       setFormError(outcome.error);

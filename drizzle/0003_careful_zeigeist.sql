@@ -1,0 +1,1 @@
+ALTER TABLE "referrals" ADD COLUMN "consent_given_at" timestamp with time zone NOT NULL DEFAULT now();
