@@ -29,6 +29,9 @@ export function hubSpotEventKey(event: HubSpotWebhookEvent) {
   return `${event.portalId}:${event.subscriptionId}:${event.eventId}:${event.occurredAt}`;
 }
 
+export const INSTALLATION_COMPLETED_PROPERTY = "status_code__c";
+export const INSTALLATION_COMPLETED_VALUE = "Install Completed";
+
 function normalizedHubSpotUri(uri: string) {
   const decodes: Record<string, string> = { "%3A": ":", "%2F": "/", "%3F": "?", "%40": "@", "%21": "!", "%24": "$", "%27": "'", "%28": "(", "%29": ")", "%2A": "*", "%2C": ",", "%3B": ";" };
   return Object.entries(decodes).reduce((value, [encoded, decoded]) => value.replace(new RegExp(encoded, "gi"), decoded), uri);

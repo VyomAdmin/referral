@@ -1,6 +1,7 @@
 import { getDb } from "../../../../db";
 import { webhookEvents } from "../../../../db/schema";
 import { hubSpotEventKey, HubSpotWebhookEvent, validateHubSpotV3Signature } from "../../../lib/hubspot";
+import { applyHubSpotDealEvent } from "../../../lib/hubspot-sync";
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
 
   const db = getDb();
   for (const event of events) {
-    await db.insert(webhookEvents).values({
+    const [inserted] = await db.insert(webhookEvents).values({
       idempotencyKey: hubSpotEventKey(event),
       provider: "hubspot",
       objectId: String(event.objectId),
@@ -30,7 +31,13 @@ export async function POST(request: Request) {
       propertyName: event.propertyName ?? null,
       propertyValue: event.propertyValue ?? null,
       payload: event,
-    }).onConflictDoNothing();
+    }).onConflictDoNothing().returning({ idempotencyKey: webhookEvents.idempotencyKey });
+
+    // Only apply the event once — a retried/duplicate delivery hits onConflictDoNothing
+    // above and returns no row, so it's skipped here too.
+    if (inserted && event.subscriptionType === "deal.propertyChange") {
+      await applyHubSpotDealEvent(event);
+    }
   }
 
   return Response.json({ accepted: events.length }, { status: 202 });

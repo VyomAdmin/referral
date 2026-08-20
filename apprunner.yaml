@@ -15,8 +15,14 @@ run:
       value: production
     - name: AUTH_TRUST_HOST
       value: "true"
+    - name: HUBSPOT_PIPELINE_ID
+      value: "691581097"
+    - name: HUBSPOT_STAGE_NEW_ID
+      value: "1012021141"
   secrets:
     - name: DATABASE_URL
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/DATABASE_URL-xwlrMa
     - name: AUTH_SECRET
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/AUTH_SECRET-ElRlvu
+    - name: HUBSPOT_PRIVATE_APP_TOKEN
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/HUBSPOT_PRIVATE_APP_TOKEN-XBo9Kw

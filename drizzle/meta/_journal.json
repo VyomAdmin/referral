@@ -29,6 +29,13 @@
       "when": 1787146019557,
       "tag": "0003_careful_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787211698658,
+      "tag": "0004_daily_big_bertha",
+      "breakpoints": true
     }
   ]
 }

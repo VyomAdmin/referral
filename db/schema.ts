@@ -64,6 +64,8 @@ export const referrals = pgTable("referrals", {
   hubspotDealId: text("hubspot_deal_id"),
   hubspotStage: text("hubspot_stage"),
   syncStatus: text("sync_status").notNull().default("pending"),
+  hubspotSyncedAt: timestamp("hubspot_synced_at", { withTimezone: true }),
+  hubspotSyncError: text("hubspot_sync_error"),
   ...timestamps,
 }, (table) => [uniqueIndex("referral_hubspot_deal_idx").on(table.organizationId, table.hubspotDealId)]);
 

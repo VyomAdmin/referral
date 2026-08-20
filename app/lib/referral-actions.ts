@@ -5,6 +5,7 @@ import { getDb } from "../../db/index.ts";
 import { referrals, referrers } from "../../db/schema.ts";
 import { getDefaultOrganizationId } from "./organization.ts";
 import { getOrCreateCampaignId } from "./campaign-directory.ts";
+import { syncReferralToHubSpot } from "./hubspot-sync.ts";
 import { isValidPhone } from "./referral-rules.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
 
@@ -72,5 +73,11 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
   });
 
   const trackPath = await mintTrackerLinkAction("customer", { referralId: id });
+
+  // Best-effort: a HubSpot outage must never block the customer's confirmation.
+  // Failures are recorded on the referral row (syncStatus/hubspotSyncError) for
+  // the reconciliation job to retry later.
+  syncReferralToHubSpot(id).catch(() => {});
+
   return { referralId: id, trackPath };
 }
