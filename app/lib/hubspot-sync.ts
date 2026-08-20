@@ -53,6 +53,7 @@ export async function syncReferralToHubSpot(referralId: string) {
       .where(eq(referrals.id, referralId));
   } catch (error) {
     const message = error instanceof HubSpotApiError ? error.message : "Unknown HubSpot sync failure";
+    console.error(`[hubspot-sync] referral ${referralId} failed: ${message}`);
     await db.update(referrals).set({ syncStatus: "failed", hubspotSyncError: message }).where(eq(referrals.id, referralId));
   }
 }
