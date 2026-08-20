@@ -8,7 +8,7 @@ import { AdminReferral, ReferralStatus } from "../lib/admin-data";
 import type { AdminEmailEvent, AdminReferrerStats } from "../lib/admin-queries";
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
-import { markReferralPaidAction } from "../lib/admin-actions";
+import { markReferralPaidAction, retryHubSpotSyncsAction } from "../lib/admin-actions";
 import { ADMIN_ROLES } from "../lib/roles";
 
 type Section = "overview" | "referrals" | "campaigns" | "rewards" | "emails" | "analytics" | "integrations" | "settings";
@@ -64,6 +64,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
   const [campaigns, setCampaigns] = useState(campaignSeed);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [notice, setNotice] = useState("");
+  const [retryingSync, setRetryingSync] = useState(false);
 
   const filteredReferrals = useMemo(() => {
     let matches = searchReferrals(referrals, query);
@@ -99,6 +100,18 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
     setNotice(`Tracker link copied: ${url}`);
   }
 
+  async function retrySync() {
+    setRetryingSync(true);
+    const result = await retryHubSpotSyncsAction();
+    setRetryingSync(false);
+    if (!result.ok) {
+      setNotice(result.error);
+      return;
+    }
+    setReferrals(result.referrals);
+    setNotice(result.retried === 0 ? "Nothing needed retrying." : `Retried ${result.retried} HubSpot sync${result.retried === 1 ? "" : "s"}.`);
+  }
+
   return (
     <main className="admin-app">
       <aside className="admin-sidebar">
@@ -126,7 +139,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
         {notice ? <div className="admin-notice" role="status"><span>✓</span>{notice}<button onClick={() => setNotice("")} type="button">×</button></div> : null}
 
         <div className="admin-workspace">
-          {section === "overview" ? <Overview onViewReferrals={() => setSection("referrals")} referrals={referrals} referrerStats={referrerStats} teamMembers={teamMembers} /> : null}
+          {section === "overview" ? <Overview onViewReferrals={() => setSection("referrals")} referrals={referrals} referrerStats={referrerStats} teamMembers={teamMembers} onRetrySync={retrySync} retryingSync={retryingSync} /> : null}
           {section === "referrals" ? (
             <ReferralsView query={query} setQuery={setQuery} stateFilter={stateFilter} setStateFilter={setStateFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} referrals={filteredReferrals} onSelect={setSelected} />
           ) : null}
@@ -151,7 +164,7 @@ function PageTitle({ eyebrow, title, description, action }: { eyebrow: string; t
   return <div className="admin-page-title"><div><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{action ? <button className="admin-primary-button" type="button">+ {action}</button> : null}</div>;
 }
 
-function Overview({ onViewReferrals, referrals, referrerStats, teamMembers }: { onViewReferrals: () => void; referrals: AdminReferral[]; referrerStats: AdminReferrerStats; teamMembers: TeamMember[] }) {
+function Overview({ onViewReferrals, referrals, referrerStats, teamMembers, onRetrySync, retryingSync }: { onViewReferrals: () => void; referrals: AdminReferral[]; referrerStats: AdminReferrerStats; teamMembers: TeamMember[]; onRetrySync: () => void; retryingSync: boolean }) {
   const today = useMemo(() => new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), []);
   const [now] = useState(() => Date.now());
 
@@ -182,7 +195,7 @@ function Overview({ onViewReferrals, referrals, referrerStats, teamMembers }: { 
 
   const attentionItems = [
     stats.outstanding.length > 0 ? { key: "rewards", icon: "warning-icon", iconLabel: "$", title: `${stats.outstanding.length} reward${stats.outstanding.length === 1 ? "" : "s"} await payment`, detail: `Oldest eligible for ${stats.oldestOutstandingDays} day${stats.oldestOutstandingDays === 1 ? "" : "s"}`, action: "Review" } : null,
-    stats.syncIssues.length > 0 ? { key: "sync", icon: "sync-icon", iconLabel: "↻", title: `${stats.syncIssues.length} HubSpot sync${stats.syncIssues.length === 1 ? "" : "s"} pending`, detail: stats.syncIssues[0]?.id ?? "", action: "Retry" } : null,
+    stats.syncIssues.length > 0 ? { key: "sync", icon: "sync-icon", iconLabel: "↻", title: `${stats.syncIssues.length} HubSpot sync${stats.syncIssues.length === 1 ? "" : "s"} pending`, detail: stats.syncIssues[0]?.id ?? "", action: retryingSync ? "Retrying…" : "Retry", onAction: onRetrySync, disabled: retryingSync } : null,
     stats.pendingInvitations > 0 ? { key: "invites", icon: "team-icon", iconLabel: String(stats.pendingInvitations), title: `${stats.pendingInvitations} teammate invitation${stats.pendingInvitations === 1 ? "" : "s"}`, detail: "Waiting for acceptance", action: "View" } : null,
   ].filter((item): item is NonNullable<typeof item> => item !== null);
 
@@ -200,7 +213,7 @@ function Overview({ onViewReferrals, referrals, referrerStats, teamMembers }: { 
       </div><button className="text-button" onClick={onViewReferrals} type="button">View all referrals →</button></section>
       <section className="admin-card activity-card"><div className="admin-card-head"><div><span>LIVE ACTIVITY</span><h2>Needs attention</h2></div><span className="alert-count">{attentionItems.length}</span></div>
         {attentionItems.length === 0 ? <p className="empty-table">Nothing needs attention right now.</p> : attentionItems.map((item) => (
-          <article key={item.key}><span className={`attention-icon ${item.icon}`}>{item.iconLabel}</span><div><strong>{item.title}</strong><small>{item.detail}</small></div><button type="button">{item.action}</button></article>
+          <article key={item.key}><span className={`attention-icon ${item.icon}`}>{item.iconLabel}</span><div><strong>{item.title}</strong><small>{item.detail}</small></div><button onClick={"onAction" in item ? item.onAction : undefined} disabled={"disabled" in item ? item.disabled : false} type="button">{item.action}</button></article>
         ))}
       </section>
     </div>

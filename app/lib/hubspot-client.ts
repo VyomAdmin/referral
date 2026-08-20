@@ -65,6 +65,31 @@ export async function createContact(input: HubSpotContactInput): Promise<string>
   return result.id;
 }
 
+const dealStageLabelCache = new Map<string, Map<string, string>>();
+
+async function loadPipelineStageLabels(pipelineId: string): Promise<Map<string, string>> {
+  const cached = dealStageLabelCache.get(pipelineId);
+  if (cached) return cached;
+
+  const result = await hubSpotFetch(`/crm/v3/pipelines/deals/${pipelineId}`, { method: "GET" });
+  const labels = new Map<string, string>((result.stages ?? []).map((stage: { id: string; label: string }) => [stage.id, stage.label]));
+  dealStageLabelCache.set(pipelineId, labels);
+  return labels;
+}
+
+// The dealstage property holds HubSpot's opaque numeric stage id, not the label
+// shown in the HubSpot UI. Resolve it once per pipeline and cache the mapping
+// so referrals display "New" instead of "1012021141". Falls back to the raw id
+// if the lookup fails — a display nicety is never worth breaking a sync over.
+export async function getDealStageLabel(pipelineId: string, stageId: string): Promise<string> {
+  try {
+    const labels = await loadPipelineStageLabels(pipelineId);
+    return labels.get(stageId) ?? stageId;
+  } catch {
+    return stageId;
+  }
+}
+
 export type HubSpotDealInput = { contactId: string; dealName: string; pipeline: string; dealstage: string; leadSource: string };
 
 export async function createDeal(input: HubSpotDealInput): Promise<{ id: string; stage: string }> {

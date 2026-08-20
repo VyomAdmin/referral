@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
-import { TestModeBanner } from "./components/test-mode-banner";
 import { ThemeToggle, THEME_INIT_SCRIPT } from "./components/theme-toggle";
 import "./globals.css";
 
@@ -47,7 +46,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {children}
         <ThemeToggle />
-        <TestModeBanner />
       </body>
     </html>
   );

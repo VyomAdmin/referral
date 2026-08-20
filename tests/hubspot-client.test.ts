@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach, mock } from "node:test";
-import { createContact, createDeal, findContactByEmailOrPhone, HubSpotApiError } from "../app/lib/hubspot-client.ts";
+import { createContact, createDeal, findContactByEmailOrPhone, getDealStageLabel, HubSpotApiError } from "../app/lib/hubspot-client.ts";
 
 const ORIGINAL_TOKEN = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
 
@@ -61,4 +61,25 @@ test("missing token throws HubSpotApiError instead of making a request", async (
   const fetchMock = mock.method(globalThis, "fetch");
   await assert.rejects(() => findContactByEmailOrPhone("a@example.com", "1"), HubSpotApiError);
   assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test("getDealStageLabel resolves the numeric stage id to its display label", async () => {
+  mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ stages: [{ id: "1012021141", label: "New" }] }), { status: 200 }));
+  const label = await getDealStageLabel("pipeline-a", "1012021141");
+  assert.equal(label, "New");
+});
+
+test("getDealStageLabel caches the pipeline's stage list across calls", async () => {
+  const fetchMock = mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ stages: [{ id: "s1", label: "Stage One" }] }), { status: 200 }));
+  await getDealStageLabel("pipeline-b", "s1");
+  await getDealStageLabel("pipeline-b", "s1");
+  assert.equal(fetchMock.mock.callCount(), 1);
+});
+
+test("getDealStageLabel falls back to the raw id when the stage isn't found or the lookup fails", async () => {
+  mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ stages: [{ id: "other", label: "Other" }] }), { status: 200 }));
+  assert.equal(await getDealStageLabel("pipeline-c", "unknown-id"), "unknown-id");
+
+  mock.method(globalThis, "fetch", async () => new Response("nope", { status: 500 }));
+  assert.equal(await getDealStageLabel("pipeline-d", "some-id"), "some-id");
 });

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrals } from "../../db/schema.ts";
-import { createContact, createDeal, findContactByEmailOrPhone } from "./hubspot-client.ts";
+import { createContact, createDeal, findContactByEmailOrPhone, getDealStageLabel } from "./hubspot-client.ts";
 import { INSTALLATION_COMPLETED_PROPERTY, INSTALLATION_COMPLETED_VALUE, mapHubSpotDealToPublicStatus } from "./hubspot.ts";
 import type { HubSpotWebhookEvent } from "./hubspot.ts";
 
@@ -39,13 +39,14 @@ export async function syncReferralToHubSpot(referralId: string) {
       dealstage: process.env.HUBSPOT_STAGE_NEW_ID,
       leadSource: LEAD_SOURCE,
     });
+    const stageLabel = await getDealStageLabel(process.env.HUBSPOT_PIPELINE_ID, deal.stage);
 
     await db
       .update(referrals)
       .set({
         hubspotContactId: contactId,
         hubspotDealId: deal.id,
-        hubspotStage: deal.stage,
+        hubspotStage: stageLabel,
         syncStatus: "synced",
         hubspotSyncedAt: new Date(),
         hubspotSyncError: null,
@@ -91,12 +92,20 @@ export function computeDealEventUpdate(referral: ReferralDealState, event: HubSp
 }
 
 // Applies an inbound deal property-change event to the matching referral row.
+// HubSpot's webhook payload carries the same opaque numeric stage id as the API,
+// so a "dealstage" event is resolved to its label before the pure decision logic
+// sees it — that logic expects text (it regex-matches on stage names).
 export async function applyHubSpotDealEvent(event: HubSpotWebhookEvent) {
   const db = getDb();
   const [referral] = await db.select().from(referrals).where(eq(referrals.hubspotDealId, String(event.objectId))).limit(1);
   if (!referral) return;
 
-  const update = computeDealEventUpdate(referral, event);
+  const resolvedEvent =
+    event.propertyName === "dealstage" && event.propertyValue && process.env.HUBSPOT_PIPELINE_ID
+      ? { ...event, propertyValue: await getDealStageLabel(process.env.HUBSPOT_PIPELINE_ID, event.propertyValue) }
+      : event;
+
+  const update = computeDealEventUpdate(referral, resolvedEvent);
   if (!update) return;
 
   await db.update(referrals).set(update).where(eq(referrals.id, referral.id));
