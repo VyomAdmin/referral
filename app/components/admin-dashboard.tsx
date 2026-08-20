@@ -109,7 +109,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
       return;
     }
     setReferrals(result.referrals);
-    setNotice(result.retried === 0 ? "Nothing needed retrying." : `Retried ${result.retried} HubSpot sync${result.retried === 1 ? "" : "s"}.`);
+    setNotice(result.retried === 0 ? "Synced with HubSpot. Nothing needed retrying." : `Synced with HubSpot and retried ${result.retried} pending sync${result.retried === 1 ? "" : "s"}.`);
   }
 
   return (
@@ -215,6 +215,7 @@ function Overview({ onViewReferrals, referrals, referrerStats, teamMembers, onRe
         {attentionItems.length === 0 ? <p className="empty-table">Nothing needs attention right now.</p> : attentionItems.map((item) => (
           <article key={item.key}><span className={`attention-icon ${item.icon}`}>{item.iconLabel}</span><div><strong>{item.title}</strong><small>{item.detail}</small></div><button onClick={"onAction" in item ? item.onAction : undefined} disabled={"disabled" in item ? item.disabled : false} type="button">{item.action}</button></article>
         ))}
+        <button className="text-button" onClick={onRetrySync} disabled={retryingSync} type="button">{retryingSync ? "Syncing with HubSpot…" : "Sync with HubSpot"}</button>
       </section>
     </div>
     <div className="admin-card recent-card"><div className="admin-card-head"><div><span>LATEST REFERRALS</span><h2>Recent activity</h2></div><button className="text-button" onClick={onViewReferrals} type="button">See all →</button></div><ReferralTable referrals={referrals.slice(0, 4)} />{referrals.length === 0 ? <p className="empty-table"><strong>No referrals yet</strong></p> : null}</div>
