@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CopyLinkButton } from "../../../components/copy-link-button";
 import { InvalidTracker, publicStages, StatusTimeline, TrackerHeader } from "../../../components/tracker";
 import { TrackerVerifyGate } from "../../../components/tracker-verify-gate";
 import { verifyTrackerToken } from "../../../lib/tracker-tokens";
@@ -41,7 +42,7 @@ export default async function ReferrerTrackerPage({ params }: { params: Promise<
         <div className="tracker-share-card">
           <small>YOUR REFERRAL LINK</small>
           <strong>referrals.nuvisionautoglass.com/r/{referrer.code}</strong>
-          <div><button type="button">Copy link</button><Link href={`/r/${referrer.code}`}>Preview</Link></div>
+          <div><CopyLinkButton link={`https://referrals.nuvisionautoglass.com/r/${referrer.code}`} /><Link href={`/r/${referrer.code}`}>Preview</Link></div>
         </div>
       </section>
 
