@@ -133,7 +133,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
       <section className="admin-main">
         <header className="admin-topbar">
           <div><span className="admin-breadcrumb">NuVision /</span><strong>{sections.find((item) => item.key === section)?.label}</strong></div>
-          <div className="admin-top-actions"><span className="sync-chip test-sync-chip"><i /> Test mode • HubSpot simulated</span><button onClick={() => setSection("settings")} aria-label="Settings" title="Settings" type="button">⚙</button><button type="button">?</button><span className="team-avatar">{initials(currentUser.name)}</span></div>
+          <div className="admin-top-actions"><button onClick={() => setSection("settings")} aria-label="Settings" title="Settings" type="button">⚙</button><button type="button">?</button><span className="team-avatar">{initials(currentUser.name)}</span></div>
         </header>
 
         {notice ? <div className="admin-notice" role="status"><span>✓</span>{notice}<button onClick={() => setNotice("")} type="button">×</button></div> : null}
