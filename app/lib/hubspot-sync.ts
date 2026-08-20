@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrals } from "../../db/schema.ts";
-import { createContact, createDeal, findContactByEmailOrPhone, getDealStageLabel } from "./hubspot-client.ts";
+import { createContact, createDeal, findContactByEmailOrPhone, getDealProperties, getDealStageLabel } from "./hubspot-client.ts";
 import { INSTALLATION_COMPLETED_PROPERTY, INSTALLATION_COMPLETED_VALUE, mapHubSpotDealToPublicStatus } from "./hubspot.ts";
 import type { HubSpotWebhookEvent } from "./hubspot.ts";
 
@@ -67,7 +67,7 @@ export type DealEventUpdate = { hubspotStage?: string; installationCompletedAt?:
 // an internal admin decision — so a webhook can never regress a referral, and
 // reward eligibility still requires the app's own installationCompletedAt on top
 // of whatever HubSpot reports.
-export function computeDealEventUpdate(referral: ReferralDealState, event: HubSpotWebhookEvent): DealEventUpdate {
+export function computeDealEventUpdate(referral: ReferralDealState, event: Pick<HubSpotWebhookEvent, "propertyName" | "propertyValue" | "occurredAt">): DealEventUpdate {
   if (!event.propertyName || referral.publicStatus === "paid") return null;
 
   const updates: { hubspotStage?: string; installationCompletedAt?: Date } = {};
@@ -109,4 +109,39 @@ export async function applyHubSpotDealEvent(event: HubSpotWebhookEvent) {
   if (!update) return;
 
   await db.update(referrals).set(update).where(eq(referrals.id, referral.id));
+}
+
+// Backstop for the webhook: pulls the deal's current dealstage and
+// installation-completed signal directly from HubSpot and applies whatever
+// changed. Webhooks only fire on changes made after a subscription is created,
+// so a property set before (or without) a working subscription never arrives
+// as an event — this lets an already-synced referral catch up on demand.
+export async function reconcileReferralFromHubSpot(referralId: string) {
+  const db = getDb();
+  const [referral] = await db.select().from(referrals).where(eq(referrals.id, referralId)).limit(1);
+  if (!referral?.hubspotDealId || referral.publicStatus === "paid") return;
+
+  const properties = await getDealProperties(referral.hubspotDealId, ["dealstage", INSTALLATION_COMPLETED_PROPERTY]);
+  let state: ReferralDealState = { publicStatus: referral.publicStatus, hubspotStage: referral.hubspotStage, installationCompletedAt: referral.installationCompletedAt };
+  let combined: NonNullable<DealEventUpdate> | Record<string, never> = {};
+
+  const rawStage = properties.dealstage;
+  if (rawStage) {
+    const stageLabel = process.env.HUBSPOT_PIPELINE_ID ? await getDealStageLabel(process.env.HUBSPOT_PIPELINE_ID, rawStage) : rawStage;
+    const stageUpdate = computeDealEventUpdate(state, { propertyName: "dealstage", propertyValue: stageLabel, occurredAt: Date.now() });
+    if (stageUpdate) {
+      combined = { ...combined, ...stageUpdate };
+      state = { ...state, hubspotStage: stageUpdate.hubspotStage ?? state.hubspotStage, publicStatus: stageUpdate.publicStatus };
+    }
+  }
+
+  const statusCode = properties[INSTALLATION_COMPLETED_PROPERTY];
+  if (statusCode) {
+    const installUpdate = computeDealEventUpdate(state, { propertyName: INSTALLATION_COMPLETED_PROPERTY, propertyValue: statusCode, occurredAt: Date.now() });
+    if (installUpdate) combined = { ...combined, ...installUpdate };
+  }
+
+  if (Object.keys(combined).length > 0) {
+    await db.update(referrals).set(combined).where(eq(referrals.id, referralId));
+  }
 }

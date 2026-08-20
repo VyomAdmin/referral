@@ -34,6 +34,12 @@ async function hubSpotFetch(path: string, init: RequestInit) {
   return response.json();
 }
 
+export async function getDealProperties(dealId: string, propertyNames: string[]): Promise<Record<string, string | null>> {
+  const query = new URLSearchParams({ properties: propertyNames.join(",") });
+  const result = await hubSpotFetch(`/crm/v3/objects/deals/${dealId}?${query}`, { method: "GET" });
+  return result.properties ?? {};
+}
+
 export type HubSpotContactInput = { firstName: string; lastName: string; email: string; phone: string };
 
 export async function findContactByEmailOrPhone(email: string, phone: string): Promise<string | null> {

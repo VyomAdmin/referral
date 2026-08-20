@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach, mock } from "node:test";
-import { createContact, createDeal, findContactByEmailOrPhone, getDealStageLabel, HubSpotApiError } from "../app/lib/hubspot-client.ts";
+import { createContact, createDeal, findContactByEmailOrPhone, getDealProperties, getDealStageLabel, HubSpotApiError } from "../app/lib/hubspot-client.ts";
 
 const ORIGINAL_TOKEN = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
 
@@ -82,4 +82,15 @@ test("getDealStageLabel falls back to the raw id when the stage isn't found or t
 
   mock.method(globalThis, "fetch", async () => new Response("nope", { status: 500 }));
   assert.equal(await getDealStageLabel("pipeline-d", "some-id"), "some-id");
+});
+
+test("getDealProperties requests the given properties and returns the deal's property bag", async () => {
+  let requestedUrl = "";
+  mock.method(globalThis, "fetch", async (url: string) => {
+    requestedUrl = url;
+    return new Response(JSON.stringify({ properties: { dealstage: "1012021141", status_code__c: "Install Completed" } }), { status: 200 });
+  });
+  const properties = await getDealProperties("deal-1", ["dealstage", "status_code__c"]);
+  assert.deepEqual(properties, { dealstage: "1012021141", status_code__c: "Install Completed" });
+  assert.match(requestedUrl, /\/crm\/v3\/objects\/deals\/deal-1\?properties=dealstage%2Cstatus_code__c/);
 });

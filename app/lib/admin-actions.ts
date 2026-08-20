@@ -7,7 +7,7 @@ import type { AdminReferral } from "./admin-data";
 import { auth } from "./auth";
 import { logAuditEvent } from "./audit";
 import { getAdminReferrals } from "./admin-queries.ts";
-import { syncReferralToHubSpot } from "./hubspot-sync.ts";
+import { reconcileReferralFromHubSpot, syncReferralToHubSpot } from "./hubspot-sync.ts";
 
 export type MarkReferralPaidResult = { ok: true } | { ok: false; error: string };
 
@@ -50,6 +50,18 @@ export async function retryHubSpotSyncsAction(): Promise<RetryHubSpotSyncsResult
 
   for (const { id } of pending) {
     await syncReferralToHubSpot(id);
+  }
+
+  // Also pull fresh state for already-synced deals: webhooks only fire on
+  // changes made after the subscription existed, so this is the backstop for
+  // anything HubSpot never told us about.
+  const synced = await getDb()
+    .select({ id: referrals.id })
+    .from(referrals)
+    .where(and(eq(referrals.organizationId, organizationId), eq(referrals.syncStatus, "synced")));
+
+  for (const { id } of synced) {
+    await reconcileReferralFromHubSpot(id);
   }
 
   if (pending.length > 0) {
