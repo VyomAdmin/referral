@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrals } from "../../db/schema.ts";
-import { createContact, createDeal, findContactByEmailOrPhone, HubSpotApiError } from "./hubspot-client.ts";
+import { createContact, createDeal, findContactByEmailOrPhone } from "./hubspot-client.ts";
 import { INSTALLATION_COMPLETED_PROPERTY, INSTALLATION_COMPLETED_VALUE, mapHubSpotDealToPublicStatus } from "./hubspot.ts";
 import type { HubSpotWebhookEvent } from "./hubspot.ts";
 
@@ -52,8 +52,8 @@ export async function syncReferralToHubSpot(referralId: string) {
       })
       .where(eq(referrals.id, referralId));
   } catch (error) {
-    const message = error instanceof HubSpotApiError ? error.message : "Unknown HubSpot sync failure";
-    console.error(`[hubspot-sync] referral ${referralId} failed: ${message}`);
+    const message = error instanceof Error ? error.message : "Unknown HubSpot sync failure";
+    console.error(`[hubspot-sync] referral ${referralId} failed:`, error);
     await db.update(referrals).set({ syncStatus: "failed", hubspotSyncError: message }).where(eq(referrals.id, referralId));
   }
 }
