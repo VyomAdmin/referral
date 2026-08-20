@@ -1,6 +1,6 @@
 import { getDb } from "../../../../db";
 import { webhookEvents } from "../../../../db/schema";
-import { createHubSpotV3Signature, hubSpotEventKey, HubSpotWebhookEvent, validateHubSpotV3Signature } from "../../../lib/hubspot";
+import { hubSpotEventKey, HubSpotWebhookEvent, validateHubSpotV3Signature } from "../../../lib/hubspot";
 import { applyHubSpotDealEvent } from "../../../lib/hubspot-sync";
 
 export async function POST(request: Request) {
@@ -20,9 +20,8 @@ export async function POST(request: Request) {
 
   const valid = await validateHubSpotV3Signature({ secret, method: request.method, uri: externalUrl, body, timestamp, signature });
   if (!valid) {
-    const expected = await createHubSpotV3Signature(secret, request.method, externalUrl, body, timestamp);
     const ageSeconds = (Date.now() - Number(timestamp)) / 1000;
-    console.error(`[hubspot-webhook] signature rejected. url=${externalUrl} ageSeconds=${ageSeconds} receivedSig=${signature} expectedSig=${expected} bodyLen=${body.length}`);
+    console.error(`[hubspot-webhook] signature rejected. url=${externalUrl} ageSeconds=${ageSeconds}`);
     return Response.json({ error: "Invalid HubSpot signature" }, { status: 401 });
   }
 
