@@ -10,11 +10,19 @@ export async function POST(request: Request) {
   const secret = process.env.HUBSPOT_CLIENT_SECRET ?? "";
 
   if (!secret) return Response.json({ error: "HubSpot is not configured" }, { status: 503 });
-  const valid = await validateHubSpotV3Signature({ secret, method: request.method, uri: request.url, body, timestamp, signature });
+
+  // App Runner terminates TLS at its load balancer and forwards this request
+  // over plain HTTP, so request.url reports "http://" even though HubSpot
+  // signed the "https://" URL it actually called. Rebuild the real external
+  // URL from the forwarded-proto header, same as layout.tsx already does.
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const externalUrl = forwardedProto ? request.url.replace(/^https?:/, `${forwardedProto}:`) : request.url;
+
+  const valid = await validateHubSpotV3Signature({ secret, method: request.method, uri: externalUrl, body, timestamp, signature });
   if (!valid) {
-    const expected = await createHubSpotV3Signature(secret, request.method, request.url, body, timestamp);
+    const expected = await createHubSpotV3Signature(secret, request.method, externalUrl, body, timestamp);
     const ageSeconds = (Date.now() - Number(timestamp)) / 1000;
-    console.error(`[hubspot-webhook] signature rejected. url=${request.url} ageSeconds=${ageSeconds} receivedSig=${signature} expectedSig=${expected} bodyLen=${body.length}`);
+    console.error(`[hubspot-webhook] signature rejected. url=${externalUrl} ageSeconds=${ageSeconds} receivedSig=${signature} expectedSig=${expected} bodyLen=${body.length}`);
     return Response.json({ error: "Invalid HubSpot signature" }, { status: 401 });
   }
 
