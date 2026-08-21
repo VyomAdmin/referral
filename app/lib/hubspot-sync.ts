@@ -26,6 +26,7 @@ export async function syncReferralToHubSpot(referralId: string) {
         lastName: referral.customerLastName,
         email: referral.customerEmail,
         phone: referral.customerPhone,
+        leadSource: LEAD_SOURCE,
       }));
 
     if (contactId !== referral.hubspotContactId) {

@@ -31,9 +31,15 @@ test("createContact posts the form fields and returns the new contact id", async
     capturedBody = init.body as string;
     return new Response(JSON.stringify({ id: "contact-2" }), { status: 201 });
   });
-  const id = await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001" });
+  const id = await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral" });
   assert.equal(id, "contact-2");
-  assert.deepEqual(JSON.parse(capturedBody).properties, { firstname: "Jane", lastname: "Doe", email: "jane@example.com", phone: "6025550001" });
+  assert.deepEqual(JSON.parse(capturedBody).properties, {
+    firstname: "Jane",
+    lastname: "Doe",
+    email: "jane@example.com",
+    phone: "6025550001",
+    incoming_lead_source__c: "Referral",
+  });
 });
 
 test("createDeal sends the pipeline, stage, lead source, and contact association", async () => {

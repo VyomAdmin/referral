@@ -168,6 +168,25 @@ function PageTitle({ eyebrow, title, description }: { eyebrow: string; title: st
   return <div className="admin-page-title"><div><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div></div>;
 }
 
+const PAGE_SIZE = 10;
+
+function Pagination({ page, totalItems, pageSize, onPageChange }: { page: number; totalItems: number; pageSize: number; onPageChange: (page: number) => void }) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  if (totalItems === 0) return null;
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalItems);
+  return (
+    <div className="admin-pagination">
+      <span>{start}–{end} of {totalItems}</span>
+      <div className="admin-pagination-controls">
+        <button onClick={() => onPageChange(page - 1)} disabled={page <= 1} type="button">‹ Prev</button>
+        <span>Page {page} of {totalPages}</span>
+        <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages} type="button">Next ›</button>
+      </div>
+    </div>
+  );
+}
+
 function Overview({ onViewReferrals, referrals, referrerStats, teamMembers, onRetrySync, retryingSync }: { onViewReferrals: () => void; referrals: AdminReferral[]; referrerStats: AdminReferrerStats; teamMembers: TeamMember[]; onRetrySync: () => void; retryingSync: boolean }) {
   const today = useMemo(() => new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), []);
   const [now] = useState(() => Date.now());
@@ -227,7 +246,16 @@ function Overview({ onViewReferrals, referrals, referrerStats, teamMembers, onRe
 }
 
 function ReferralsView({ query, setQuery, stateFilter, setStateFilter, statusFilter, setStatusFilter, referrals, onSelect }: { query: string; setQuery: (value: string) => void; stateFilter: string; setStateFilter: (value: string) => void; statusFilter: "All statuses" | ReferralStatus; setStatusFilter: (value: "All statuses" | ReferralStatus) => void; referrals: AdminReferral[]; onSelect: (referral: AdminReferral) => void }) {
-  return <><PageTitle eyebrow="CRM OPERATIONS" title="Referrals & people" description="Search any referrer or referred customer across campaigns and HubSpot." /><div className="table-toolbar"><label className="admin-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, phone, code, HubSpot ID…" /></label><select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}><option>All states</option><option>AZ</option><option>FL</option></select><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "All statuses" | ReferralStatus)}><option>All statuses</option><option value="received">{statusLabel("received")}</option><option value="scheduled">{statusLabel("scheduled")}</option><option value="installed">{statusLabel("installed")}</option><option value="paid">{statusLabel("paid")}</option><option value="cancelled">{statusLabel("cancelled")}</option></select></div><div className="admin-card referral-table-card"><ReferralTable referrals={referrals} onSelect={onSelect} />{referrals.length === 0 ? <div className="empty-table"><strong>No matching referrals</strong><span>Try a different name, phone, code, or filter.</span></div> : null}</div></>;
+  const [page, setPage] = useState(1);
+  const filterKey = `${query}|${stateFilter}|${statusFilter}`;
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
+    setPage(1);
+  }
+  const pageReferrals = useMemo(() => referrals.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [referrals, page]);
+
+  return <><PageTitle eyebrow="CRM OPERATIONS" title="Referrals & people" description="Search any referrer or referred customer across campaigns and HubSpot." /><div className="table-toolbar"><label className="admin-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, phone, code, HubSpot ID…" /></label><select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}><option>All states</option><option>AZ</option><option>FL</option></select><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "All statuses" | ReferralStatus)}><option>All statuses</option><option value="received">{statusLabel("received")}</option><option value="scheduled">{statusLabel("scheduled")}</option><option value="installed">{statusLabel("installed")}</option><option value="paid">{statusLabel("paid")}</option><option value="cancelled">{statusLabel("cancelled")}</option></select></div><div className="admin-card referral-table-card"><ReferralTable referrals={pageReferrals} onSelect={onSelect} />{referrals.length === 0 ? <div className="empty-table"><strong>No matching referrals</strong><span>Try a different name, phone, code, or filter.</span></div> : <Pagination page={page} totalItems={referrals.length} pageSize={PAGE_SIZE} onPageChange={setPage} />}</div></>;
 }
 
 function ReferralTable({ referrals, onSelect }: { referrals: AdminReferral[]; onSelect?: (referral: AdminReferral) => void }) {
@@ -273,12 +301,33 @@ function CampaignEditDrawer({ campaign, onClose, onSave }: { campaign: AdminCamp
   );
 }
 
+type RewardStatusFilter = "All statuses" | "scheduled" | "installed" | "paid";
+
 function RewardsView({ referrals, onPay }: { referrals: AdminReferral[]; onPay: (referral: AdminReferral) => void }) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<RewardStatusFilter>("All statuses");
+  const [page, setPage] = useState(1);
+
   const eligibleNow = referrals.filter((r) => r.status === "installed").reduce((sum, r) => sum + r.rewardAmount, 0);
   const paidAllTime = referrals.filter((r) => r.status === "paid").reduce((sum, r) => sum + r.rewardAmount, 0);
   const blocked = referrals.filter((r) => r.status === "received" || r.status === "scheduled").reduce((sum, r) => sum + r.rewardAmount, 0);
 
-  return <><PageTitle eyebrow="FINANCE" title="Reward queue" description="Payments unlock only after an installation-completed signal." /><div className="reward-summary"><article><span>Eligible now</span><strong>${eligibleNow}</strong></article><article><span>Paid all time</span><strong>${paidAllTime}</strong></article><article><span>Blocked / pending install</span><strong>${blocked}</strong></article></div><div className="admin-card reward-table"><ReferralTable referrals={referrals.filter((referral) => ["scheduled", "installed", "paid"].includes(referral.status))} />{referrals.length === 0 ? <div className="empty-table"><strong>No referrals yet</strong></div> : null}<div className="reward-actions">{referrals.filter((referral) => ["scheduled", "installed"].includes(referral.status)).map((referral) => <div key={referral.id}><span><strong>{referral.id}</strong> • {referral.customer}</span><button disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Waiting for installation"}</button></div>)}</div></div></>;
+  const rewardQueue = useMemo(() => referrals.filter((referral) => ["scheduled", "installed", "paid"].includes(referral.status)), [referrals]);
+  const filteredQueue = useMemo(() => {
+    let matches = searchReferrals(rewardQueue, query);
+    if (statusFilter !== "All statuses") matches = matches.filter((referral) => referral.status === statusFilter);
+    return matches;
+  }, [rewardQueue, query, statusFilter]);
+
+  const filterKey = `${query}|${statusFilter}`;
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
+    setPage(1);
+  }
+  const pageQueue = useMemo(() => filteredQueue.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredQueue, page]);
+
+  return <><PageTitle eyebrow="FINANCE" title="Reward queue" description="Payments unlock only after an installation-completed signal." /><div className="reward-summary"><article><span>Eligible now</span><strong>${eligibleNow}</strong></article><article><span>Paid all time</span><strong>${paidAllTime}</strong></article><article><span>Blocked / pending install</span><strong>${blocked}</strong></article></div><div className="table-toolbar"><label className="admin-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, phone, code, HubSpot ID…" /></label><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as RewardStatusFilter)}><option value="All statuses">All statuses</option><option value="scheduled">{statusLabel("scheduled")}</option><option value="installed">{statusLabel("installed")}</option><option value="paid">{statusLabel("paid")}</option></select></div><div className="admin-card reward-table"><ReferralTable referrals={pageQueue} />{filteredQueue.length === 0 ? <div className="empty-table"><strong>No matching referrals</strong><span>Try a different name, phone, code, or filter.</span></div> : <Pagination page={page} totalItems={filteredQueue.length} pageSize={PAGE_SIZE} onPageChange={setPage} />}<div className="reward-actions">{pageQueue.filter((referral) => ["scheduled", "installed"].includes(referral.status)).map((referral) => <div key={referral.id}><span><strong>{referral.id}</strong> • {referral.customer}</span><button disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Waiting for installation"}</button></div>)}</div></div></>;
 }
 
 function EmailsView({ emailEvents }: { emailEvents: AdminEmailEvent[] }) {

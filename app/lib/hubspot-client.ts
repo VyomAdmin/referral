@@ -40,7 +40,7 @@ export async function getDealProperties(dealId: string, propertyNames: string[])
   return result.properties ?? {};
 }
 
-export type HubSpotContactInput = { firstName: string; lastName: string; email: string; phone: string };
+export type HubSpotContactInput = { firstName: string; lastName: string; email: string; phone: string; leadSource: string };
 
 export async function findContactByEmailOrPhone(email: string, phone: string): Promise<string | null> {
   const result = await hubSpotFetch("/crm/v3/objects/contacts/search", {
@@ -65,6 +65,7 @@ export async function createContact(input: HubSpotContactInput): Promise<string>
         lastname: input.lastName,
         email: input.email,
         phone: input.phone,
+        incoming_lead_source__c: input.leadSource,
       },
     }),
   });
