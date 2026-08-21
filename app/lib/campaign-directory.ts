@@ -17,7 +17,7 @@ export async function getOrCreateCampaignId(organizationId: string, state: strin
   if (!seed) return null;
 
   const id = crypto.randomUUID();
-  await db.insert(campaigns).values({
+  const [inserted] = await db.insert(campaigns).values({
     id,
     organizationId,
     name: seed.campaignName,
@@ -26,6 +26,12 @@ export async function getOrCreateCampaignId(organizationId: string, state: strin
     referrerRewardCents: seed.referrerReward * 100,
     serviceMessage: seed.serviceMessage,
     zipRule: seed.state,
-  });
-  return id;
+  }).onConflictDoNothing().returning({ id: campaigns.id });
+  if (inserted) return inserted.id;
+
+  // Another concurrent first-referral for this state won the insert — read
+  // back its row instead of throwing on the unique (organizationId, state)
+  // constraint.
+  const [winner] = await db.select({ id: campaigns.id }).from(campaigns).where(and(eq(campaigns.organizationId, organizationId), eq(campaigns.state, state))).limit(1);
+  return winner?.id ?? null;
 }

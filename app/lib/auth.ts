@@ -3,9 +3,9 @@ import Credentials from "next-auth/providers/credentials";
 import { eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { teamMembers, users } from "../../db/schema.ts";
-import { verifyPassword } from "./password";
-import { verifyTotpCode } from "./totp";
-import { logAuditEvent } from "./audit";
+import { verifyPassword } from "./password.ts";
+import { verifyTotpCode } from "./totp.ts";
+import { logAuditEvent } from "./audit.ts";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,

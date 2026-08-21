@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { campaignForZip, createReferralCode } from "../app/lib/referral-rules.ts";
+import { campaignForZip, createReferralCode, isValidPhone } from "../app/lib/referral-rules.ts";
 
 test("routes Arizona ZIP codes to the Arizona offer", () => {
   const campaign = campaignForZip("85001");
@@ -24,4 +24,20 @@ test("rejects malformed and unsupported ZIP codes", () => {
 
 test("creates branded referral codes without personal information", () => {
   assert.equal(createReferralCode("Sandeep", "Jha", 1723456789012), "NV-SJ-9012");
+});
+
+test("isValidPhone accepts a 10-digit US number in any common formatting", () => {
+  assert.equal(isValidPhone("(602) 555-0123"), true);
+  assert.equal(isValidPhone("6025550123"), true);
+  assert.equal(isValidPhone("602.555.0123"), true);
+  assert.equal(isValidPhone("+1 (602) 555-0123"), true);
+  assert.equal(isValidPhone("16025550123"), true);
+});
+
+test("isValidPhone rejects wrong lengths and a non-US country code prefix", () => {
+  assert.equal(isValidPhone("602-555-012"), false);
+  assert.equal(isValidPhone("602-555-01234"), false);
+  assert.equal(isValidPhone("26025550123"), false);
+  assert.equal(isValidPhone(""), false);
+  assert.equal(isValidPhone("abcdefghij"), false);
 });

@@ -5,9 +5,9 @@ import { AdminDashboard } from "../components/admin-dashboard";
 import { auth, requireRole, signOut } from "../lib/auth";
 import { ADMIN_ROLES } from "../lib/roles";
 import { generateTotpSecret, totpEnrollmentQrCode } from "../lib/totp";
-import { getAdminEmailEvents, getAdminReferrals, getAdminReferrerStats } from "../lib/admin-queries";
+import { getAdminCampaigns, getAdminEmailEvents, getAdminReferrals, getAdminReferrerStats } from "../lib/admin-queries";
 import type { AdminReferral } from "../lib/admin-data";
-import type { AdminEmailEvent, AdminReferrerStats } from "../lib/admin-queries";
+import type { AdminCampaign, AdminEmailEvent, AdminReferrerStats } from "../lib/admin-queries";
 
 export const metadata = { title: "Referral operations" };
 
@@ -23,11 +23,13 @@ export default async function AdminPage() {
   let referrals: AdminReferral[] = [];
   let referrerStats: AdminReferrerStats = { total: 0, joinedThisMonth: 0 };
   let emailEvents: AdminEmailEvent[] = [];
+  let campaigns: AdminCampaign[] = [];
   if (session?.user?.organizationId) {
-    [referrals, referrerStats, emailEvents] = await Promise.all([
+    [referrals, referrerStats, emailEvents, campaigns] = await Promise.all([
       getAdminReferrals(session.user.organizationId),
       getAdminReferrerStats(session.user.organizationId),
       getAdminEmailEvents(session.user.organizationId),
+      getAdminCampaigns(session.user.organizationId),
     ]);
   }
 
@@ -54,6 +56,7 @@ export default async function AdminPage() {
       signOutAction={signOutAction}
       teamMembers={members}
       initialReferrals={referrals}
+      initialCampaigns={campaigns}
       referrerStats={referrerStats}
       emailEvents={emailEvents}
       totpEnabled={totpEnabled}

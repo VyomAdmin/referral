@@ -161,6 +161,12 @@ export const inviteTokens = pgTable("invite_tokens", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
+export const verificationAttempts = pgTable("verification_attempts", {
+  id: text("id").primaryKey(),
+  scopeKey: text("scope_key").notNull(),
+  attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+
 export const auditEvents = pgTable("audit_events", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),

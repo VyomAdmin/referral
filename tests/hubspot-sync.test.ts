@@ -44,3 +44,18 @@ test("closed-won stage text alone still cannot reach installed without the compl
   const update = computeDealEventUpdate(baseReferral, dealEvent("dealstage", "Closed Won"));
   assert.equal(update?.publicStatus, "scheduled");
 });
+
+test("publicStatus never regresses when a rep moves a deal backward in HubSpot", () => {
+  const scheduled: ReferralDealState = { publicStatus: "scheduled", hubspotStage: "Appointment Scheduled", installationCompletedAt: null };
+  const update = computeDealEventUpdate(scheduled, dealEvent("dealstage", "New"));
+  // hubspotStage still records HubSpot's true current state...
+  assert.equal(update?.hubspotStage, "New");
+  // ...but the customer-facing publicStatus does not regress back to "received".
+  assert.equal(update?.publicStatus, "scheduled");
+});
+
+test("publicStatus still advances forward normally after a prior stage regression", () => {
+  const scheduled: ReferralDealState = { publicStatus: "scheduled", hubspotStage: "New", installationCompletedAt: null };
+  const update = computeDealEventUpdate(scheduled, dealEvent("status_code__c", "Install Completed"));
+  assert.equal(update?.publicStatus, "installed");
+});

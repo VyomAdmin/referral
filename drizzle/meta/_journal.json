@@ -36,6 +36,13 @@
       "when": 1787211698658,
       "tag": "0004_daily_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787301116826,
+      "tag": "0005_flippant_shaman",
+      "breakpoints": true
     }
   ]
 }

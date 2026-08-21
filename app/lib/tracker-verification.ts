@@ -5,8 +5,12 @@ import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrals, referrers } from "../../db/schema.ts";
+import { checkRateLimit } from "./rate-limit.ts";
 import { hashSecureToken } from "./secure-token.ts";
 import { verifyTrackerToken, type TrackerTokenKind } from "./tracker-tokens.ts";
+
+const MAX_VERIFY_ATTEMPTS = 5;
+const VERIFY_WINDOW_MINUTES = 15;
 
 const COOKIE_PREFIX = "nv_tv_";
 const VERIFICATION_TTL_SECONDS = 60 * 60 * 12;
@@ -67,6 +71,11 @@ async function verifyTrackerAccessAction(kind: TrackerTokenKind, rawToken: strin
   const phoneLast4 = phone.replace(/\D/g, "").slice(-4);
   if (!normalizedEmail || phoneLast4.length !== 4) {
     return { ok: false, error: "Enter the email address and the last 4 digits of the phone number on file." };
+  }
+
+  const withinLimit = await checkRateLimit(`tracker-verify:${kind}:${rawToken}`, MAX_VERIFY_ATTEMPTS, VERIFY_WINDOW_MINUTES);
+  if (!withinLimit) {
+    return { ok: false, error: "Too many attempts. Please try again in a few minutes." };
   }
 
   const contact = await getContact(kind, rawToken);

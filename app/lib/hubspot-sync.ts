@@ -62,11 +62,23 @@ export async function syncReferralToHubSpot(referralId: string) {
 export type ReferralDealState = { publicStatus: string; hubspotStage: string | null; installationCompletedAt: Date | null };
 export type DealEventUpdate = { hubspotStage?: string; installationCompletedAt?: Date; publicStatus: string } | null;
 
+const PUBLIC_STATUS_RANK: Record<string, number> = { received: 0, scheduled: 1, installed: 2, paid: 3 };
+
+// The internal hubspotStage record always reflects HubSpot's true current
+// state, but the customer-facing publicStatus never moves backward — a rep
+// correcting a deal stage in HubSpot shouldn't make a customer's tracker
+// regress from "installed" back to "received".
+function clampPublicStatus(current: string, computed: string): string {
+  const currentRank = PUBLIC_STATUS_RANK[current] ?? 0;
+  const computedRank = PUBLIC_STATUS_RANK[computed] ?? 0;
+  return computedRank >= currentRank ? computed : current;
+}
+
 // Pure decision: what should change on a referral given its current state and an
 // inbound deal property-change event? `paid` is never produced here — that stays
-// an internal admin decision — so a webhook can never regress a referral, and
-// reward eligibility still requires the app's own installationCompletedAt on top
-// of whatever HubSpot reports.
+// an internal admin decision — and publicStatus is clamped so a webhook can
+// never regress it, so reward eligibility still requires the app's own
+// installationCompletedAt on top of whatever HubSpot reports.
 export function computeDealEventUpdate(referral: ReferralDealState, event: Pick<HubSpotWebhookEvent, "propertyName" | "propertyValue" | "occurredAt">): DealEventUpdate {
   if (!event.propertyName || referral.publicStatus === "paid") return null;
 
@@ -81,14 +93,14 @@ export function computeDealEventUpdate(referral: ReferralDealState, event: Pick<
 
   const nextStage = updates.hubspotStage ?? referral.hubspotStage ?? "";
   const nextInstallationCompletedAt = updates.installationCompletedAt ?? referral.installationCompletedAt;
-  const publicStatus = mapHubSpotDealToPublicStatus({
+  const computedStatus = mapHubSpotDealToPublicStatus({
     dealStage: nextStage,
     installationCompleted: Boolean(nextInstallationCompletedAt),
     installationCompletedAt: nextInstallationCompletedAt?.toISOString() ?? null,
     rewardPaid: false,
   });
 
-  return { ...updates, publicStatus };
+  return { ...updates, publicStatus: clampPublicStatus(referral.publicStatus, computedStatus) };
 }
 
 // Applies an inbound deal property-change event to the matching referral row.

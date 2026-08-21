@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { webhookEvents } from "../../../../db/schema";
 import { hubSpotEventKey, HubSpotWebhookEvent, validateHubSpotV3Signature } from "../../../lib/hubspot";
@@ -35,21 +36,32 @@ export async function POST(request: Request) {
 
   const db = getDb();
   for (const event of events) {
+    const idempotencyKey = hubSpotEventKey(event);
+
+    // Record the delivery, but idempotencyKey alone doesn't mean "already
+    // applied" — only processedAt does. If a prior delivery inserted this row
+    // and then threw before finishing, processedAt is still null and this
+    // retry must apply the event again, not skip it.
     const [inserted] = await db.insert(webhookEvents).values({
-      idempotencyKey: hubSpotEventKey(event),
+      idempotencyKey,
       provider: "hubspot",
       objectId: String(event.objectId),
       eventType: event.subscriptionType,
       propertyName: event.propertyName ?? null,
       propertyValue: event.propertyValue ?? null,
       payload: event,
-    }).onConflictDoNothing().returning({ idempotencyKey: webhookEvents.idempotencyKey });
+    }).onConflictDoNothing().returning({ processedAt: webhookEvents.processedAt });
 
-    // Only apply the event once — a retried/duplicate delivery hits onConflictDoNothing
-    // above and returns no row, so it's skipped here too.
-    if (inserted && event.subscriptionType === "deal.propertyChange") {
+    const processedAt = inserted
+      ? inserted.processedAt
+      : (await db.select({ processedAt: webhookEvents.processedAt }).from(webhookEvents).where(eq(webhookEvents.idempotencyKey, idempotencyKey)).limit(1))[0]?.processedAt;
+
+    if (processedAt) continue;
+
+    if (event.subscriptionType === "deal.propertyChange") {
       await applyHubSpotDealEvent(event);
     }
+    await db.update(webhookEvents).set({ processedAt: new Date() }).where(eq(webhookEvents.idempotencyKey, idempotencyKey));
   }
 
   return Response.json({ accepted: events.length }, { status: 202 });

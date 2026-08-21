@@ -4,8 +4,12 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrals, referrers } from "../../db/schema.ts";
 import { getDefaultOrganizationId } from "./organization.ts";
+import { checkRateLimit } from "./rate-limit.ts";
 import { createTrackerToken } from "./tracker-tokens.ts";
 import { markTrackerVerified } from "./tracker-verification.ts";
+
+const MAX_LOOKUP_ATTEMPTS = 5;
+const LOOKUP_WINDOW_MINUTES = 15;
 
 export type TrackerLookupResult =
   | { ok: true; referrerTrack: string | null; customerTracks: { trackPath: string; state: string; zip: string }[] }
@@ -16,6 +20,11 @@ export async function lookupTrackerLinksAction(email: string, phone: string): Pr
   const phoneLast4 = phone.replace(/\D/g, "").slice(-4);
   if (!normalizedEmail || phoneLast4.length !== 4) {
     return { ok: false, error: "Enter the email address and the last 4 digits of the phone number on file." };
+  }
+
+  const withinLimit = await checkRateLimit(`tracker-lookup:${normalizedEmail}`, MAX_LOOKUP_ATTEMPTS, LOOKUP_WINDOW_MINUTES);
+  if (!withinLimit) {
+    return { ok: false, error: "Too many attempts. Please try again in a few minutes." };
   }
 
   const organizationId = await getDefaultOrganizationId();

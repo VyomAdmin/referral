@@ -51,6 +51,17 @@ export async function getAdminReferrals(organizationId: string): Promise<AdminRe
   }));
 }
 
+export type AdminCampaign = { id: string; state: string; name: string; offer: string | null; rewardCents: number; active: boolean };
+
+export async function getAdminCampaigns(organizationId: string): Promise<AdminCampaign[]> {
+  const rows = await getDb()
+    .select({ id: campaigns.id, state: campaigns.state, name: campaigns.name, offer: campaigns.customerOffer, rewardCents: campaigns.referrerRewardCents, active: campaigns.active })
+    .from(campaigns)
+    .where(eq(campaigns.organizationId, organizationId))
+    .orderBy(campaigns.state);
+  return rows;
+}
+
 export type AdminReferrerStats = { total: number; joinedThisMonth: number };
 
 export async function getAdminReferrerStats(organizationId: string): Promise<AdminReferrerStats> {
