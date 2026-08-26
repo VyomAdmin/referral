@@ -6,7 +6,7 @@ export const THEME_STORAGE_KEY = "nv-theme";
 
 export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(t!=="light"&&t!=="dark"){t="dark"}document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","dark")}})();`;
 
-export function ThemeToggle() {
+function useThemeState() {
   const [theme, setTheme] = useState<"dark" | "light" | null>(null);
 
   useEffect(() => {
@@ -27,6 +27,11 @@ export function ThemeToggle() {
     setTheme(next);
   }
 
+  return { theme, toggleTheme };
+}
+
+export function ThemeToggle() {
+  const { theme, toggleTheme } = useThemeState();
   if (!theme) return null;
 
   return (
@@ -38,6 +43,25 @@ export function ThemeToggle() {
     >
       <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
       <span className="toggle-label">{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+    </button>
+  );
+}
+
+// Icon-only variant for tight layouts (e.g. the admin sidebar footer) where the
+// floating pill-with-label ThemeToggle would overlap page content.
+export function ThemeToggleIcon() {
+  const { theme, toggleTheme } = useThemeState();
+  if (!theme) return null;
+
+  return (
+    <button
+      type="button"
+      className="theme-toggle-icon"
+      onClick={toggleTheme}
+      aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+    >
+      <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
     </button>
   );
 }

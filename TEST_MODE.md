@@ -14,7 +14,7 @@ This workspace is intentionally configured as a test build for NuVision's intern
 ## Recommended internal QA accounts and URLs
 
 - Referrer registration: `/`
-- Referred customer flow: `/r/NV-SANDEEP`
+- Referred customer flow: `/r/NV-NUVISION`
 - Arizona test ZIP with offer: `85001`
 - Florida test ZIP without offer: `33101`
 - Referrer tracker: `/track/referrer/demo`

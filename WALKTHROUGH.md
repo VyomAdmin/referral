@@ -23,7 +23,7 @@ Quick orientation for a teammate new to the app. For full history see `AGENT_HAN
 
 ## Suggested walkthrough flow (~10 min)
 1. **Referrer signup** at `/` — fill form, get the generated link.
-2. **Customer journey, AZ** — open the link (or seeded `/r/NV-SANDEEP`), ZIP `85001` → $50/$50 offer → submit quote.
+2. **Customer journey, AZ** — open the link (or seeded `/r/NV-NUVISION`), ZIP `85001` → $50/$50 offer → submit quote.
 3. **Customer journey, FL** — same flow, ZIP `33101` → no offer, proving state config isn't hardcoded.
 4. **Referrer tracker** at `/track/referrer/<token>` — privacy-safe, counts only, no referred-customer PII.
 5. **Customer tracker** at `/track/customer/<token>` — the 4 public stages: Referral received → Appointment scheduled → Installation completed → Reward paid.

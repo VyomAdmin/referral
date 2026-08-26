@@ -22,7 +22,7 @@ test("server-renders the NuVision referral registration experience", async () =>
 });
 
 test("server-renders the ZIP-gated referred-customer journey", async () => {
-  const response = await render("/r/NV-SANDEEP");
+  const response = await render("/r/NV-NUVISION");
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Where do you need service/);

@@ -68,7 +68,7 @@ Suggested roles are Owner/Admin, CRM Operations, Rewards/Finance, Marketing, and
 ## Current product surfaces
 
 - `/` — referrer registration and unique-link result
-- `/r/NV-SANDEEP` — referred-customer ZIP gate and quote flow
+- `/r/NV-NUVISION` — referred-customer ZIP gate and quote flow
 - `/track/referrer/demo` — referrer tracker
 - `/track/customer/demo` — customer service tracker
 - `/track/customer/expired` — expired secure-link state

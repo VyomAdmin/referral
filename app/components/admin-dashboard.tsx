@@ -10,6 +10,7 @@ import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-ru
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
 import { markReferralPaidAction, retryHubSpotSyncsAction, updateCampaignAction } from "../lib/admin-actions";
 import { ADMIN_ROLES } from "../lib/roles";
+import { ThemeToggleIcon } from "./theme-toggle";
 
 type Section = "overview" | "referrals" | "campaigns" | "rewards" | "emails" | "analytics" | "integrations" | "settings";
 
@@ -127,11 +128,11 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
             </button>
           ))}
         </nav>
-        <form className="admin-sidebar-foot" action={signOutAction}>
+        <div className="admin-sidebar-foot">
           <span className="team-avatar">{initials(currentUser.name)}</span>
           <div><strong>{currentUser.name}</strong><small>{currentUser.role}</small></div>
-          <button type="submit" aria-label="Sign out" title="Sign out">•••</button>
-        </form>
+          <ThemeToggleIcon />
+        </div>
       </aside>
 
       <section className="admin-main">
@@ -153,7 +154,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
           {section === "analytics" ? <AnalyticsView referrals={referrals} /> : null}
           {section === "integrations" ? <IntegrationsView /> : null}
           {section === "settings" ? (
-            <SettingsView currentUserRole={currentUser.role} teamMembers={teamMembers} totpEnabled={totpEnabled} totpSecret={totpSecret} totpQrCodeDataUrl={totpQrCodeDataUrl} />
+            <SettingsView currentUserRole={currentUser.role} teamMembers={teamMembers} totpEnabled={totpEnabled} totpSecret={totpSecret} totpQrCodeDataUrl={totpQrCodeDataUrl} signOutAction={signOutAction} />
           ) : null}
         </div>
       </section>
@@ -390,12 +391,13 @@ function AnalyticsView({ referrals }: { referrals: AdminReferral[] }) {
 
 function IntegrationsView() { return <><PageTitle eyebrow="SYSTEM HEALTH" title="Integrations" description="Test mappings and workflows before your developers connect production services." /><div className="integration-grid"><article className="admin-card integration-card"><div className="integration-logo hubspot-logo">H</div><div><span className="paused-dot">Simulated</span><h2>HubSpot CRM</h2><p>Contacts, deals, stage changes, and installation completion use seeded test events.</p></div><dl><div><dt>CRM writes</dt><dd>Disabled</dd></div><div><dt>Webhook endpoint</dt><dd>Awaiting secret</dd></div><div><dt>Test mapping</dt><dd>15 checks passed</dd></div></dl></article><article className="admin-card integration-card"><div className="integration-logo email-logo">@</div><div><span className="paused-dot">Simulated</span><h2>Transactional email</h2><p>Templates and event previews are active. No messages leave the application.</p></div><dl><div><dt>Live sending</dt><dd>Disabled</dd></div><div><dt>Templates</dt><dd>6 configured</dd></div><div><dt>Provider</dt><dd>Choose before launch</dd></div></dl></article></div></>; }
 
-function SettingsView({ currentUserRole, teamMembers, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
+function SettingsView({ currentUserRole, teamMembers, totpEnabled, totpSecret, totpQrCodeDataUrl, signOutAction }: {
   currentUserRole: string;
   teamMembers: TeamMember[];
   totpEnabled: boolean;
   totpSecret: string;
   totpQrCodeDataUrl: string;
+  signOutAction: () => Promise<void>;
 }) {
   const canManageUsers = ADMIN_ROLES.includes(currentUserRole);
   const [tab, setTab] = useState<"users" | "security">(canManageUsers ? "users" : "security");
@@ -436,6 +438,10 @@ function SettingsView({ currentUserRole, teamMembers, totpEnabled, totpSecret, t
         <h2 className="settings-subheading">Two-factor authentication</h2>
         <div className="admin-card settings-panel-card">
           {totpEnabled ? <p>Two-factor authentication is enabled on your account.</p> : <TotpEnrollmentForm secret={totpSecret} qrCodeDataUrl={totpQrCodeDataUrl} />}
+        </div>
+        <h2 className="settings-subheading">Session</h2>
+        <div className="admin-card settings-panel-card">
+          <form action={signOutAction}><button className="button button-secondary" type="submit">Sign out</button></form>
         </div>
       </>
     ) : null}

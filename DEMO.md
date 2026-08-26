@@ -12,7 +12,7 @@ First-party, white-label replacement for Referral Factory: NuVision owns referra
 | Persona | Goal | Entry point |
 |---|---|---|
 | Referrer (NuVision customer) | Register, get a shareable link, track referral status | `/` |
-| Referred customer | Enter ZIP, see offer, submit quote request, track progress | `/r/NV-SANDEEP` |
+| Referred customer | Enter ZIP, see offer, submit quote request, track progress | `/r/NV-NUVISION` |
 | Internal ops user | Search people, view timeline, approve rewards | `/admin` |
 
 ## 3. Demo flow (~6-8 min walkthrough)
@@ -23,7 +23,7 @@ First-party, white-label replacement for Referral Factory: NuVision owns referra
 - Talking point: one link per referrer, reusable forever, no login needed later — tracker access is passwordless.
 
 ### Scene 2 — Referred customer journey (Arizona — has offer)
-- Open the generated link, or use seeded `/r/NV-SANDEEP`.
+- Open the generated link, or use seeded `/r/NV-NUVISION`.
 - Enter ZIP `85001` (Arizona) → offer page shows **$50 customer + $50 referrer** offer, AZ-specific copy.
 - Fill quote form: name, email, phone, vehicle make/year/model, insurance provider → submit → confirmation screen.
 - Talking point: ZIP gate happens *before* offer language — attribution (referral code, ZIP, state, campaign) is preserved silently through the whole flow.
@@ -68,7 +68,7 @@ First-party, white-label replacement for Referral Factory: NuVision owns referra
 ## 5. Test URLs / seeded data cheat sheet
 
 - Referrer registration: `/`
-- Referred customer flow: `/r/NV-SANDEEP`
+- Referred customer flow: `/r/NV-NUVISION`
 - Arizona ZIP (has offer): `85001`
 - Florida ZIP (no offer): `33101`
 - Referrer tracker: `/track/referrer/demo`

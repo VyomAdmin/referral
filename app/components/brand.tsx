@@ -21,7 +21,7 @@ export function PublicHeader() {
         <Brand />
         <nav aria-label="Referral navigation">
           <a href="#join">Get my link</a>
-          <Link href="/r/NV-SANDEEP">I was referred</Link>
+          <Link href="/r/NV-NUVISION">I was referred</Link>
           <Link href="/demo">Demo tour</Link>
           <Link className="header-track-link" href="/track">Track referrals</Link>
         </nav>

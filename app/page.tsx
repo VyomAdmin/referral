@@ -31,7 +31,7 @@ export default function Home() {
             <a className="button button-primary" href="#join">
               Get my referral link
             </a>
-            <Link className="button button-secondary" href="/r/NV-SANDEEP">
+            <Link className="button button-secondary" href="/r/NV-NUVISION">
               I was referred
             </Link>
           </div>
