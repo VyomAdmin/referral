@@ -17,4 +17,5 @@ export type AdminReferral = {
   installedAt: string | null;
   rewardAmount: number;
   syncStatus: "synced" | "pending" | "failed" | "skipped";
+  syncError: string | null;
 };

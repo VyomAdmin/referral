@@ -56,20 +56,38 @@ export async function findContactByEmailOrPhone(email: string, phone: string): P
   return result.results?.[0]?.id ?? null;
 }
 
+// HubSpot's own duplicate-detection (email uniqueness) is broader than our
+// findContactByEmailOrPhone lookup (e.g. a contact created outside this app,
+// or matched on a normalized email our exact-match query missed). Without
+// this, that mismatch makes createContact fail with a 409 on every single
+// retry forever — findContactByEmailOrPhone finds nothing, createContact
+// hits the same conflict, and the referral is stuck "failed" no matter how
+// many times an admin clicks retry. HubSpot's conflict body names the
+// existing contact's id, so recover it and use that instead of throwing.
+const HUBSPOT_EXISTING_ID_PATTERN = /Existing ID:\s*(\d+)/i;
+
 export async function createContact(input: HubSpotContactInput): Promise<string> {
-  const result = await hubSpotFetch("/crm/v3/objects/contacts", {
-    method: "POST",
-    body: JSON.stringify({
-      properties: {
-        firstname: input.firstName,
-        lastname: input.lastName,
-        email: input.email,
-        phone: input.phone,
-        incoming_lead_source__c: input.leadSource,
-      },
-    }),
-  });
-  return result.id;
+  try {
+    const result = await hubSpotFetch("/crm/v3/objects/contacts", {
+      method: "POST",
+      body: JSON.stringify({
+        properties: {
+          firstname: input.firstName,
+          lastname: input.lastName,
+          email: input.email,
+          phone: input.phone,
+          incoming_lead_source__c: input.leadSource,
+        },
+      }),
+    });
+    return result.id;
+  } catch (error) {
+    if (error instanceof HubSpotApiError && error.status === 409) {
+      const existingId = error.message.match(HUBSPOT_EXISTING_ID_PATTERN)?.[1];
+      if (existingId) return existingId;
+    }
+    throw error;
+  }
 }
 
 const dealStageLabelCache = new Map<string, Map<string, string>>();

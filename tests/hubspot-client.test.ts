@@ -42,6 +42,21 @@ test("createContact posts the form fields and returns the new contact id", async
   });
 });
 
+test("createContact recovers the existing contact id from a 409 conflict instead of throwing", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    new Response(JSON.stringify({ status: "error", message: "Contact already exists. Existing ID: 9988", category: "CONFLICT" }), { status: 409 }));
+  const id = await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral" });
+  assert.equal(id, "9988");
+});
+
+test("createContact still throws a 409 whose body doesn't name an existing id", async () => {
+  mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ status: "error", message: "Conflict" }), { status: 409 }));
+  await assert.rejects(
+    () => createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral" }),
+    (error: unknown) => error instanceof HubSpotApiError && error.status === 409,
+  );
+});
+
 test("createDeal sends the pipeline, stage, lead source, and contact association", async () => {
   let capturedBody = "";
   mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {

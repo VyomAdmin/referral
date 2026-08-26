@@ -24,6 +24,7 @@ export async function getAdminReferrals(organizationId: string): Promise<AdminRe
       installationCompletedAt: referrals.installationCompletedAt,
       referrerRewardCents: campaigns.referrerRewardCents,
       syncStatus: referrals.syncStatus,
+      syncError: referrals.hubspotSyncError,
     })
     .from(referrals)
     .innerJoin(referrers, eq(referrals.referrerId, referrers.id))
@@ -48,6 +49,7 @@ export async function getAdminReferrals(organizationId: string): Promise<AdminRe
     installedAt: row.installationCompletedAt ? row.installationCompletedAt.toISOString() : null,
     rewardAmount: (row.referrerRewardCents ?? 5000) / 100,
     syncStatus: (row.syncStatus as AdminReferral["syncStatus"]) ?? "pending",
+    syncError: row.syncError,
   }));
 }
 

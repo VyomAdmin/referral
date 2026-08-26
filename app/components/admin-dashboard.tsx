@@ -8,7 +8,7 @@ import { AdminReferral, ReferralStatus } from "../lib/admin-data";
 import type { AdminCampaign, AdminEmailEvent, AdminReferrerStats } from "../lib/admin-queries";
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
-import { markReferralPaidAction, retryHubSpotSyncsAction, updateCampaignAction } from "../lib/admin-actions";
+import { markReferralPaidAction, retryHubSpotSyncsAction, retrySingleHubSpotSyncAction, updateCampaignAction } from "../lib/admin-actions";
 import { ADMIN_ROLES } from "../lib/roles";
 import { ThemeToggleIcon } from "./theme-toggle";
 
@@ -65,6 +65,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
   const [editingCampaign, setEditingCampaign] = useState<AdminCampaign | null>(null);
   const [notice, setNotice] = useState("");
   const [retryingSync, setRetryingSync] = useState(false);
+  const [retryingSingleSync, setRetryingSingleSync] = useState(false);
 
   const filteredReferrals = useMemo(() => {
     let matches = searchReferrals(referrals, query);
@@ -117,6 +118,19 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
     setNotice(result.retried === 0 ? "Synced with HubSpot. Nothing needed retrying." : `Synced with HubSpot and retried ${result.retried} pending sync${result.retried === 1 ? "" : "s"}.`);
   }
 
+  async function retrySingleSync(referral: AdminReferral) {
+    setRetryingSingleSync(true);
+    const result = await retrySingleHubSpotSyncAction(referral.id);
+    setRetryingSingleSync(false);
+    if (!result.ok) {
+      setNotice(result.error);
+      return;
+    }
+    setReferrals((current) => current.map((item) => item.id === result.referral.id ? result.referral : item));
+    setSelected((current) => current?.id === result.referral.id ? result.referral : current);
+    setNotice(result.referral.syncStatus === "synced" ? `${result.referral.id} synced with HubSpot.` : `${result.referral.id} still failed: ${result.referral.syncError ?? "unknown error"}`);
+  }
+
   return (
     <main className="admin-app">
       <aside className="admin-sidebar">
@@ -159,7 +173,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
         </div>
       </section>
 
-      {selected ? <ReferralDrawer referral={selected} onClose={() => setSelected(null)} onPay={markPaid} onMintTrackerLink={mintTrackerLink} /> : null}
+      {selected ? <ReferralDrawer referral={selected} onClose={() => setSelected(null)} onPay={markPaid} onMintTrackerLink={mintTrackerLink} onRetrySync={retrySingleSync} retryingSync={retryingSingleSync} /> : null}
       {editingCampaign ? <CampaignEditDrawer campaign={editingCampaign} onClose={() => setEditingCampaign(null)} onSave={saveCampaign} /> : null}
     </main>
   );
@@ -448,4 +462,4 @@ function SettingsView({ currentUserRole, teamMembers, totpEnabled, totpSecret, t
   </>;
 }
 
-function ReferralDrawer({ referral, onClose, onPay, onMintTrackerLink }: { referral: AdminReferral; onClose: () => void; onPay: (referral: AdminReferral) => void; onMintTrackerLink: () => void }) { return <div className="drawer-backdrop"><button className="drawer-close-backdrop" onClick={onClose} aria-label="Close referral details" type="button" /><aside className="referral-drawer"><header><div><span>{referral.id}</span><h2>{referral.customer}</h2></div><button onClick={onClose} type="button">×</button></header><div className="drawer-status"><span className={`admin-status status-${referral.status}`}>{statusLabel(referral.status)}</span><span className={`sync-${referral.syncStatus}`}>HubSpot {referral.syncStatus}</span></div><section><span className="drawer-label">PEOPLE</span><div className="person-pair"><article><small>REFERRER</small><strong>{referral.referrer}</strong><span>{referral.referrerEmail}</span></article><span>→</span><article><small>CUSTOMER</small><strong>{referral.customer}</strong><span>{referral.customerEmail}</span></article></div></section><section><span className="drawer-label">REFERRAL DETAILS</span><dl className="drawer-details"><div><dt>Code</dt><dd>{referral.code}</dd></div><div><dt>Market</dt><dd>{referral.zip}, {referral.state}</dd></div><div><dt>HubSpot deal</dt><dd>#{referral.hubspotDealId}</dd></div><div><dt>HubSpot stage</dt><dd>{referral.hubspotStage}</dd></div><div><dt>Installation</dt><dd>{referral.installedAt ?? "Not completed"}</dd></div><div><dt>Reward</dt><dd>${referral.rewardAmount}</dd></div></dl></section><section><span className="drawer-label">TIMELINE</span><ol className="drawer-timeline"><li className="complete"><i />Referral form submitted<small>{referral.submittedAt}</small></li><li className={referral.status !== "received" ? "complete" : ""}><i />Appointment scheduled<small>{referral.status === "received" ? "Waiting" : "Synced from HubSpot"}</small></li><li className={["installed", "paid"].includes(referral.status) ? "complete" : ""}><i />Installation completed<small>{referral.installedAt ?? "Waiting"}</small></li><li className={referral.status === "paid" ? "complete" : ""}><i />Reward paid<small>{referral.status === "paid" ? "Processed" : "Waiting"}</small></li></ol></section><footer><button className="button button-secondary" onClick={onMintTrackerLink} type="button">Copy tracker link</button><button className="button button-primary" disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Payment locked"}</button></footer></aside></div>; }
+function ReferralDrawer({ referral, onClose, onPay, onMintTrackerLink, onRetrySync, retryingSync }: { referral: AdminReferral; onClose: () => void; onPay: (referral: AdminReferral) => void; onMintTrackerLink: () => void; onRetrySync: (referral: AdminReferral) => void; retryingSync: boolean }) { return <div className="drawer-backdrop"><button className="drawer-close-backdrop" onClick={onClose} aria-label="Close referral details" type="button" /><aside className="referral-drawer"><header><div><span>{referral.id}</span><h2>{referral.customer}</h2></div><button onClick={onClose} type="button">×</button></header><div className="drawer-status"><span className={`admin-status status-${referral.status}`}>{statusLabel(referral.status)}</span><span className={`sync-${referral.syncStatus}`}>HubSpot {referral.syncStatus}</span></div>{referral.syncStatus === "failed" ? <div className="drawer-sync-error"><p>{referral.syncError ?? "Sync failed for an unknown reason."}</p><button className="text-button" onClick={() => onRetrySync(referral)} disabled={retryingSync} type="button">{retryingSync ? "Retrying…" : "Retry this referral"}</button></div> : null}<section><span className="drawer-label">PEOPLE</span><div className="person-pair"><article><small>REFERRER</small><strong>{referral.referrer}</strong><span>{referral.referrerEmail}</span></article><span>→</span><article><small>CUSTOMER</small><strong>{referral.customer}</strong><span>{referral.customerEmail}</span></article></div></section><section><span className="drawer-label">REFERRAL DETAILS</span><dl className="drawer-details"><div><dt>Code</dt><dd>{referral.code}</dd></div><div><dt>Market</dt><dd>{referral.zip}, {referral.state}</dd></div><div><dt>HubSpot deal</dt><dd>#{referral.hubspotDealId}</dd></div><div><dt>HubSpot stage</dt><dd>{referral.hubspotStage}</dd></div><div><dt>Installation</dt><dd>{referral.installedAt ?? "Not completed"}</dd></div><div><dt>Reward</dt><dd>${referral.rewardAmount}</dd></div></dl></section><section><span className="drawer-label">TIMELINE</span><ol className="drawer-timeline"><li className="complete"><i />Referral form submitted<small>{referral.submittedAt}</small></li><li className={referral.status !== "received" ? "complete" : ""}><i />Appointment scheduled<small>{referral.status === "received" ? "Waiting" : "Synced from HubSpot"}</small></li><li className={["installed", "paid"].includes(referral.status) ? "complete" : ""}><i />Installation completed<small>{referral.installedAt ?? "Waiting"}</small></li><li className={referral.status === "paid" ? "complete" : ""}><i />Reward paid<small>{referral.status === "paid" ? "Processed" : "Waiting"}</small></li></ol></section><footer><button className="button button-secondary" onClick={onMintTrackerLink} type="button">Copy tracker link</button><button className="button button-primary" disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Payment locked"}</button></footer></aside></div>; }

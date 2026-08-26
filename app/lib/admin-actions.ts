@@ -94,6 +94,42 @@ export async function retryHubSpotSyncsAction(): Promise<RetryHubSpotSyncsResult
   return { ok: true, retried: pending.length, referrals: await getAdminReferrals(organizationId) };
 }
 
+export type RetrySingleHubSpotSyncResult = { ok: true; referral: AdminReferral } | { ok: false; error: string };
+
+export async function retrySingleHubSpotSyncAction(referralId: string): Promise<RetrySingleHubSpotSyncResult> {
+  const session = await auth();
+  if (!session?.user?.organizationId) {
+    return { ok: false, error: "You don't have permission to retry HubSpot syncs." };
+  }
+
+  const organizationId = session.user.organizationId;
+  const [existing] = await getDb()
+    .select({ id: referrals.id })
+    .from(referrals)
+    .where(and(eq(referrals.id, referralId), eq(referrals.organizationId, organizationId)))
+    .limit(1);
+  if (!existing) {
+    return { ok: false, error: "Referral not found." };
+  }
+
+  await syncReferralToHubSpot(referralId);
+
+  await logAuditEvent({
+    actorId: session.user.id ?? "unknown",
+    action: "hubspot.sync_retried",
+    targetType: "referral",
+    targetId: referralId,
+    organizationId,
+  });
+
+  const [updated] = await getAdminReferrals(organizationId).then((rows) => rows.filter((row) => row.id === referralId));
+  if (!updated) {
+    return { ok: false, error: "Referral not found after retry." };
+  }
+
+  return { ok: true, referral: updated };
+}
+
 export type UpdateCampaignInput = { id: string; name: string; offer: string | null; rewardCents: number; active: boolean };
 export type UpdateCampaignResult = { ok: true; campaign: AdminCampaign } | { ok: false; error: string };
 
