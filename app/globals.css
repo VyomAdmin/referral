@@ -145,6 +145,12 @@ a { color: inherit; }
 .brand-compact .brand-mark { width: 34px; height: 34px; }
 .brand-compact .brand-words strong { font-size: 18px; }
 
+.brand-header-wordmark { display: none; height: 48px; width: auto; }
+.brand-header-mark-light, .brand-header-words-light { display: none; }
+:root:not([data-theme="light"]) .brand-header-wordmark { display: block; }
+:root[data-theme="light"] .brand-header-mark-light { display: block; }
+:root[data-theme="light"] .brand-header-words-light { display: flex; }
+
 .hero { display: grid; grid-template-columns: 1fr 500px; gap: 88px; align-items: center; padding-block: 84px 72px; }
 .hero-copy { max-width: 570px; }
 .eyebrow { color: var(--blue-700); text-transform: uppercase; letter-spacing: 2px; font-size: 12px; font-weight: 850; }
