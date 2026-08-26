@@ -1,4 +1,4 @@
-import { Brand } from "../../components/brand";
+import { Brand, HeaderBrand } from "../../components/brand";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Sign in" };
@@ -8,7 +8,7 @@ export default function AdminLoginPage() {
     <main className="public-page">
       <header className="public-header">
         <div className="page-width header-inner">
-          <Brand />
+          <HeaderBrand />
         </div>
       </header>
       <section className="admin-login-shell page-width">

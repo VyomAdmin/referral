@@ -1,4 +1,4 @@
-import { Brand } from "../../../components/brand";
+import { Brand, HeaderBrand } from "../../../components/brand";
 import { verifyInviteToken } from "../../../lib/invite-tokens";
 import { AcceptInviteForm } from "./accept-invite-form";
 
@@ -12,7 +12,7 @@ export default async function AcceptInvitePage({ params }: { params: Promise<{ t
     <main className="public-page">
       <header className="public-header">
         <div className="page-width header-inner">
-          <Brand />
+          <HeaderBrand />
         </div>
       </header>
       <section className="admin-login-shell page-width">

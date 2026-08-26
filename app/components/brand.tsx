@@ -27,7 +27,7 @@ export function BrandWordmark() {
 // Header brand: shows the real wordmark on the site's default dark theme (matching
 // the footer), falling back to the icon+text lockup when the visitor switches to
 // light theme, since the wordmark is white-only and would disappear on a light header.
-function HeaderBrand() {
+export function HeaderBrand() {
   return (
     <a className="brand brand-header" href={NUVISION_HOME_URL} aria-label="NuVision Auto Glass home">
       <img className="brand-header-wordmark" src="/nuvision-wordmark.png" alt="NuVision Auto Glass" width={150} height={56} />
