@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PublicHeader, Brand } from "../components/brand";
+import { PublicHeader, BrandWordmark } from "../components/brand";
 
 export const metadata = {
   title: "Demo Tour | NuVision Referrals",
@@ -137,7 +137,7 @@ export default function DemoPage() {
 
       <footer className="public-footer">
         <div className="page-width footer-inner">
-          <Brand compact />
+          <BrandWordmark />
           <p>See clearly. Drive safely. Share confidently.</p>
           <div>
             <Link href="/">Referrer registration</Link>

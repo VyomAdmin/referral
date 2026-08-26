@@ -14,6 +14,16 @@ export function Brand({ compact = false }: { compact?: boolean }) {
   );
 }
 
+// Full wordmark for dark surfaces (e.g. the public footer) where there's room
+// for NuVision's actual logo lockup instead of the compact icon+text brand.
+export function BrandWordmark() {
+  return (
+    <a className="brand-wordmark" href={NUVISION_HOME_URL} aria-label="NuVision Auto Glass home">
+      <img src="/nuvision-wordmark.png" alt="NuVision Auto Glass" width={150} height={56} />
+    </a>
+  );
+}
+
 export function PublicHeader() {
   return (
     <header className="public-header">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brand, PublicHeader } from "./components/brand";
+import { Brand, BrandWordmark, PublicHeader } from "./components/brand";
 import { ReferrerRegistration } from "./components/referrer-registration";
 
 export const metadata = {
@@ -87,7 +87,7 @@ export default function Home() {
 
       <footer className="public-footer">
         <div className="page-width footer-inner">
-          <Brand compact />
+          <BrandWordmark />
           <p>See clearly. Drive safely. Share confidently.</p>
           <div>
             <a href="https://www.nuvisionautoglass.com/terms-conditions/">Program terms</a>

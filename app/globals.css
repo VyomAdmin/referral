@@ -217,6 +217,8 @@ a { color: inherit; }
 .public-footer { padding-block: 32px; background: var(--blue-900); color: white; }
 .public-footer .brand-mark { filter: none; }
 .public-footer .brand-words strong, .public-footer .brand-words small { color: white; }
+.brand-wordmark { display: inline-flex; }
+.brand-wordmark img { display: block; height: 40px; width: auto; }
 .public-footer p { color: #c6dbea; font-size: 13px; }
 .public-footer div:last-child { display: flex; gap: 20px; }
 .public-footer div:last-child a { color: #d9e8f2; font-size: 12px; text-decoration: none; }
