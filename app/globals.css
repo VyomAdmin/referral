@@ -150,6 +150,9 @@ a { color: inherit; }
 :root:not([data-theme="light"]) .brand-header-wordmark { display: block; }
 :root[data-theme="light"] .brand-header-mark-light { display: block; }
 :root[data-theme="light"] .brand-header-words-light { display: flex; }
+.brand-header-compact .brand-header-wordmark { height: 32px; }
+.brand-header-compact .brand-header-mark-light { width: 34px; height: 34px; }
+.brand-header-compact .brand-header-words-light strong { font-size: 18px; }
 
 .hero { display: grid; grid-template-columns: 1fr 500px; gap: 88px; align-items: center; padding-block: 84px 72px; }
 .hero-copy { max-width: 570px; }

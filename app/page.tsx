@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brand, BrandWordmark, PublicHeader } from "./components/brand";
+import { BrandWordmark, HeaderBrand, PublicHeader } from "./components/brand";
 import { ReferrerRegistration } from "./components/referrer-registration";
 
 export const metadata = {
@@ -40,7 +40,7 @@ export default function Home() {
 
         <div className="hero-card" id="join">
           <div className="hero-card-head">
-            <Brand compact />
+            <HeaderBrand compact />
             <span className="status-pill status-pill-soft">Takes 30 seconds</span>
           </div>
           <div>
