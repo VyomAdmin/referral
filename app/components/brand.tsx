@@ -24,18 +24,15 @@ export function BrandWordmark() {
   );
 }
 
-// Themed brand: shows the real wordmark on the site's default dark theme (matching
-// the footer), falling back to the icon+text lockup when the visitor switches to
-// light theme, since the wordmark is white-only and would disappear on a light surface.
+// Themed brand: shows NuVision's real wordmark on any surface — the white
+// version on the site's default dark theme (matching the footer), the full-color
+// version when the visitor switches to light theme, since the white wordmark
+// would disappear there.
 export function HeaderBrand({ compact = false }: { compact?: boolean }) {
   return (
     <a className={`brand brand-header ${compact ? "brand-header-compact" : ""}`} href={NUVISION_HOME_URL} aria-label="NuVision Auto Glass home">
       <img className="brand-header-wordmark" src="/nuvision-wordmark.png" alt="NuVision Auto Glass" width={150} height={56} />
-      <img className="brand-header-mark-light brand-mark" src="/brand-icon.png" alt="" width={42} height={42} />
-      <span className="brand-header-words-light brand-words">
-        <strong>NuVision</strong>
-        <small>AUTO GLASS</small>
-      </span>
+      <img className="brand-header-wordmark-light" src="/nuvision-wordmark-color.png" alt="NuVision Auto Glass" width={150} height={39} />
     </a>
   );
 }

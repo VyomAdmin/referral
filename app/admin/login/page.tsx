@@ -1,4 +1,4 @@
-import { Brand, HeaderBrand } from "../../components/brand";
+import { HeaderBrand } from "../../components/brand";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Sign in" };
@@ -13,7 +13,7 @@ export default function AdminLoginPage() {
       </header>
       <section className="admin-login-shell page-width">
         <div className="hero-card admin-login-card">
-          <Brand compact />
+          <HeaderBrand compact />
           <h1>Referral operations</h1>
           <p>Sign in with your NuVision team credentials.</p>
           <LoginForm />

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brand } from "./brand";
+import { HeaderBrand } from "./brand";
 
 export const publicStages = [
   { key: "received", label: "Referral received", helper: "The request reached NuVision." },
@@ -12,7 +12,7 @@ export function TrackerHeader({ label }: { label: string }) {
   return (
     <header className="tracker-header">
       <div className="page-width tracker-header-inner">
-        <Brand />
+        <HeaderBrand />
         <div className="tracker-header-actions">
           <span>{label}</span>
           <Link href="/">Sign out</Link>
