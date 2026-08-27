@@ -6,6 +6,8 @@ export type AdminReferral = {
   referrer: string;
   referrerEmail: string;
   customer: string;
+  customerFirstName: string;
+  customerLastName: string;
   customerEmail: string;
   phone: string;
   state: "AZ" | "FL";

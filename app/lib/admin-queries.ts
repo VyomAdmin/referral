@@ -38,6 +38,8 @@ export async function getAdminReferrals(organizationId: string): Promise<AdminRe
     referrer: `${row.referrerFirstName} ${row.referrerLastName}`,
     referrerEmail: row.referrerEmail,
     customer: `${row.customerFirstName} ${row.customerLastName}`,
+    customerFirstName: row.customerFirstName,
+    customerLastName: row.customerLastName,
     customerEmail: row.customerEmail,
     phone: row.phone,
     state: row.state as AdminReferral["state"],

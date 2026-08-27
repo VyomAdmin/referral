@@ -6,7 +6,7 @@ import { referrals, referrers } from "../../db/schema.ts";
 import { getDefaultOrganizationId } from "./organization.ts";
 import { getOrCreateCampaignId } from "./campaign-directory.ts";
 import { syncReferralToHubSpot } from "./hubspot-sync.ts";
-import { isValidPhone } from "./referral-rules.ts";
+import { isValidEmail, isValidPhone } from "./referral-rules.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
 
 export type CustomerReferralInput = {
@@ -32,7 +32,7 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
   const email = input.email.trim().toLowerCase();
   const phone = input.phone.trim();
 
-  if (!firstName || !lastName || !/^\S+@\S+\.\S+$/.test(email) || !isValidPhone(phone)) {
+  if (!firstName || !lastName || !isValidEmail(email) || !isValidPhone(phone)) {
     return { error: "Complete every field, including a valid email and a 10-digit mobile number." };
   }
   if (!input.consent) {
