@@ -518,6 +518,14 @@ a { color: inherit; }
 .settings-tabs button.active { border-color: var(--blue-700); background: var(--blue-700); color: white; }
 .settings-subheading { margin: 28px 0 14px; font-size: 15px; letter-spacing: -.3px; }
 .settings-panel-card { padding: 22px; }
+form.settings-panel-card { display: flex; flex-direction: column; gap: 16px; }
+form.settings-panel-card label { display: grid; gap: 7px; color: var(--ink); font-size: 12px; font-weight: 750; }
+form.settings-panel-card input, form.settings-panel-card textarea, form.settings-panel-card select {
+  width: 100%; min-width: 0; max-width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--line);
+  color: var(--ink); background: var(--surface-soft); outline: none; font-family: inherit; resize: vertical;
+}
+form.settings-panel-card input:focus, form.settings-panel-card textarea:focus, form.settings-panel-card select:focus { border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(0, 86, 140, .13); }
+form.settings-panel-card footer { display: flex; justify-content: flex-end; gap: 10px; }
 .totp-enrollment { display: flex; gap: 24px; align-items: flex-start; }
 .totp-qr { border: 1px solid var(--line); border-radius: 13px; padding: 10px; background: white; flex-shrink: 0; }
 .totp-instructions { margin: 0 0 4px; color: var(--muted); font-size: 12px; line-height: 1.5; }
