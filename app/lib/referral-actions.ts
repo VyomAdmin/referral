@@ -6,8 +6,12 @@ import { referrals, referrers } from "../../db/schema.ts";
 import { getDefaultOrganizationId } from "./organization.ts";
 import { getOrCreateCampaignId } from "./campaign-directory.ts";
 import { syncReferralToHubSpot } from "./hubspot-sync.ts";
+import { checkRateLimit, getClientIp } from "./rate-limit.ts";
 import { isValidEmail, isValidPhone } from "./referral-rules.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
+
+const MAX_SUBMISSIONS_PER_WINDOW = 5;
+const SUBMISSION_WINDOW_MINUTES = 10;
 
 export type CustomerReferralInput = {
   referralCode: string;
@@ -37,6 +41,12 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
   }
   if (!input.consent) {
     return { error: "Please agree to the program terms to continue." };
+  }
+
+  const clientIp = await getClientIp();
+  const withinLimit = await checkRateLimit(`referral-submit:${clientIp}`, MAX_SUBMISSIONS_PER_WINDOW, SUBMISSION_WINDOW_MINUTES);
+  if (!withinLimit) {
+    return { error: "Too many submissions from this connection. Please try again in a few minutes." };
   }
 
   const organizationId = await getDefaultOrganizationId();

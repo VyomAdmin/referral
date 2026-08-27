@@ -37,6 +37,10 @@ export function campaignForZip(zip: string): StateCampaign | null {
   return null;
 }
 
+export function stateName(state: StateCampaign["state"]): string {
+  return campaigns[state].stateName;
+}
+
 export function isValidPhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
   return digits.length === 10 || (digits.length === 11 && digits.startsWith("1"));

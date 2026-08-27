@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { campaignForZip, createReferralCode, isValidEmail, isValidPhone } from "../app/lib/referral-rules.ts";
+import { campaignForZip, createReferralCode, isValidEmail, isValidPhone, stateName } from "../app/lib/referral-rules.ts";
 
 test("routes Arizona ZIP codes to the Arizona offer", () => {
   const campaign = campaignForZip("85001");
@@ -52,4 +52,9 @@ test("isValidEmail rejects addresses missing an @ or a domain", () => {
   assert.equal(isValidEmail("janeexample.com"), false);
   assert.equal(isValidEmail(""), false);
   assert.equal(isValidEmail("jane@"), false);
+});
+
+test("stateName resolves the two-letter code to the full state name for HubSpot", () => {
+  assert.equal(stateName("AZ"), "Arizona");
+  assert.equal(stateName("FL"), "Florida");
 });

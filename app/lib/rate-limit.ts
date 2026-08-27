@@ -4,6 +4,22 @@ import { and, eq, gte, sql } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { verificationAttempts } from "../../db/schema.ts";
 
+// Best-effort caller IP for rate-limit scoping on public, unauthenticated forms.
+// App Runner's Envoy proxy sets x-forwarded-for. next/headers is imported
+// dynamically and swallowed on failure: node --test loads this module outside
+// any Next.js/vinext request context, where next/headers can't resolve or
+// headers() throws — that must degrade to a shared bucket, not crash the caller.
+export async function getClientIp(): Promise<string> {
+  try {
+    const { headers } = await import("next/headers");
+    const headerList = await headers();
+    const forwardedFor = headerList.get("x-forwarded-for");
+    return forwardedFor?.split(",")[0]?.trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 // A generic per-scope rate limiter backed by the database, so it holds across
 // container restarts and multiple App Runner instances — an in-memory map
 // would not. Used to stop brute-forcing the 4-digit phone suffix on tracker

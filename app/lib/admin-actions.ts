@@ -55,7 +55,7 @@ export type RetryHubSpotSyncsResult = { ok: true; retried: number; referrals: Ad
 
 export async function retryHubSpotSyncsAction(): Promise<RetryHubSpotSyncsResult> {
   const session = await auth();
-  if (!session?.user?.organizationId) {
+  if (!session?.user?.organizationId || !requireRole(session, CRM_ROLES)) {
     return { ok: false, error: "You don't have permission to retry HubSpot syncs." };
   }
 
@@ -99,7 +99,7 @@ export type RetrySingleHubSpotSyncResult = { ok: true; referral: AdminReferral }
 
 export async function retrySingleHubSpotSyncAction(referralId: string): Promise<RetrySingleHubSpotSyncResult> {
   const session = await auth();
-  if (!session?.user?.organizationId) {
+  if (!session?.user?.organizationId || !requireRole(session, CRM_ROLES)) {
     return { ok: false, error: "You don't have permission to retry HubSpot syncs." };
   }
 

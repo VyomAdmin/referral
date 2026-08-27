@@ -63,13 +63,56 @@ test("createDeal sends the pipeline, stage, lead source, and contact association
     capturedBody = init.body as string;
     return new Response(JSON.stringify({ id: "deal-1", properties: { dealstage: "1012021141" } }), { status: 201 });
   });
-  const deal = await createDeal({ contactId: "contact-2", dealName: "Jane Doe — AZ 85001", pipeline: "691581097", dealstage: "1012021141", leadSource: "Referral" });
+  const deal = await createDeal({
+    contactId: "contact-2",
+    dealName: "Jane Doe — AZ 85001",
+    pipeline: "691581097",
+    dealstage: "1012021141",
+    leadSource: "Referral",
+    contactPhone: "6025550001",
+    installState: "Arizona",
+    installZip: "85001",
+    vehicleYear: "2022",
+    vehicleMake: "Toyota",
+    vehicleModel: "Camry",
+    insuranceProvider: "GEICO",
+  });
   assert.deepEqual(deal, { id: "deal-1", stage: "1012021141" });
   const body = JSON.parse(capturedBody);
   assert.equal(body.properties.pipeline, "691581097");
   assert.equal(body.properties.dealstage, "1012021141");
   assert.equal(body.properties.incoming_lead_source__c, "Referral");
+  assert.equal(body.properties.contact_phone_1__c, "6025550001");
+  assert.equal(body.properties.install_state, "Arizona");
+  assert.equal(body.properties.install_zip, "85001");
+  assert.equal(body.properties.year__c, "2022");
+  assert.equal(body.properties.veh_make__c, "Toyota");
+  assert.equal(body.properties.model__c, "Camry");
+  assert.equal(body.properties.insurance_provider_2, "GEICO");
   assert.equal(body.associations[0].to.id, "contact-2");
+});
+
+test("createDeal omits vehicle/insurance properties entirely when not provided, instead of sending empty strings", async () => {
+  let capturedBody = "";
+  mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    capturedBody = init.body as string;
+    return new Response(JSON.stringify({ id: "deal-2", properties: { dealstage: "1012021141" } }), { status: 201 });
+  });
+  await createDeal({
+    contactId: "contact-3",
+    dealName: "John Roe — FL 33101",
+    pipeline: "691581097",
+    dealstage: "1012021141",
+    leadSource: "Referral",
+    contactPhone: "3055550001",
+    installState: "Florida",
+    installZip: "33101",
+  });
+  const body = JSON.parse(capturedBody);
+  assert.equal("year__c" in body.properties, false);
+  assert.equal("veh_make__c" in body.properties, false);
+  assert.equal("model__c" in body.properties, false);
+  assert.equal("insurance_provider_2" in body.properties, false);
 });
 
 test("a non-2xx HubSpot response surfaces as HubSpotApiError with the status code", async () => {

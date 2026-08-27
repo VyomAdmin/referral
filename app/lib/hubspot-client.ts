@@ -115,7 +115,20 @@ export async function getDealStageLabel(pipelineId: string, stageId: string): Pr
   }
 }
 
-export type HubSpotDealInput = { contactId: string; dealName: string; pipeline: string; dealstage: string; leadSource: string };
+export type HubSpotDealInput = {
+  contactId: string;
+  dealName: string;
+  pipeline: string;
+  dealstage: string;
+  leadSource: string;
+  contactPhone: string;
+  installState: string;
+  installZip: string;
+  vehicleYear?: string | null;
+  vehicleMake?: string | null;
+  vehicleModel?: string | null;
+  insuranceProvider?: string | null;
+};
 
 export async function createDeal(input: HubSpotDealInput): Promise<{ id: string; stage: string }> {
   const result = await hubSpotFetch("/crm/v3/objects/deals", {
@@ -126,6 +139,13 @@ export async function createDeal(input: HubSpotDealInput): Promise<{ id: string;
         pipeline: input.pipeline,
         dealstage: input.dealstage,
         incoming_lead_source__c: input.leadSource,
+        contact_phone_1__c: input.contactPhone,
+        install_state: input.installState,
+        install_zip: input.installZip,
+        ...(input.vehicleYear ? { year__c: input.vehicleYear } : {}),
+        ...(input.vehicleMake ? { veh_make__c: input.vehicleMake } : {}),
+        ...(input.vehicleModel ? { model__c: input.vehicleModel } : {}),
+        ...(input.insuranceProvider ? { insurance_provider_2: input.insuranceProvider } : {}),
       },
       associations: [
         {

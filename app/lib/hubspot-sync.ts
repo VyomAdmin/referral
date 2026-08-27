@@ -4,6 +4,8 @@ import { referrals } from "../../db/schema.ts";
 import { createContact, createDeal, findContactByEmailOrPhone, getDealProperties, getDealStageLabel } from "./hubspot-client.ts";
 import { INSTALLATION_COMPLETED_PROPERTY, INSTALLATION_COMPLETED_VALUE, mapHubSpotDealToPublicStatus } from "./hubspot.ts";
 import type { HubSpotWebhookEvent } from "./hubspot.ts";
+import { notifyOps } from "./ops-alerts.ts";
+import { stateName } from "./referral-rules.ts";
 
 const LEAD_SOURCE = "Referral";
 
@@ -39,6 +41,13 @@ export async function syncReferralToHubSpot(referralId: string) {
       pipeline: process.env.HUBSPOT_PIPELINE_ID,
       dealstage: process.env.HUBSPOT_STAGE_NEW_ID,
       leadSource: LEAD_SOURCE,
+      contactPhone: referral.customerPhone,
+      installState: stateName(referral.state as "AZ" | "FL"),
+      installZip: referral.zip,
+      vehicleYear: referral.vehicleYear,
+      vehicleMake: referral.vehicleMake,
+      vehicleModel: referral.vehicleModel,
+      insuranceProvider: referral.insuranceProvider,
     });
     const stageLabel = await getDealStageLabel(process.env.HUBSPOT_PIPELINE_ID, deal.stage);
 
@@ -57,6 +66,11 @@ export async function syncReferralToHubSpot(referralId: string) {
     const message = error instanceof Error ? error.message : "Unknown HubSpot sync failure";
     console.error(`[hubspot-sync] referral ${referralId} failed:`, error);
     await db.update(referrals).set({ syncStatus: "failed", hubspotSyncError: message }).where(eq(referrals.id, referralId));
+    await notifyOps({
+      type: "hubspot_sync_failed",
+      summary: `HubSpot sync failed for referral ${referralId}: ${message}`,
+      context: { referralId, customerEmail: referral.customerEmail },
+    });
   }
 }
 
