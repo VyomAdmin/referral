@@ -1,13 +1,38 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrals } from "../../db/schema.ts";
-import { createContact, createDeal, findContactByEmailOrPhone, getDealProperties, getDealStageLabel } from "./hubspot-client.ts";
+import { createContact, createDeal, findContactByEmailOrPhone, getDealProperties, getDealStageLabel, resolvePicklistValue } from "./hubspot-client.ts";
 import { INSTALLATION_COMPLETED_PROPERTY, INSTALLATION_COMPLETED_VALUE, mapHubSpotDealToPublicStatus } from "./hubspot.ts";
 import type { HubSpotWebhookEvent } from "./hubspot.ts";
 import { notifyOps } from "./ops-alerts.ts";
 import { stateName } from "./referral-rules.ts";
 
 const LEAD_SOURCE = "Referral";
+
+// Resolves each candidate value against its HubSpot property (matching
+// picklists case-insensitively, passing free-text fields through as-is) and
+// splits the results into properties HubSpot will accept vs. a human-readable
+// notes line for anything a picklist rejected — so an unrecognized value
+// (a make HubSpot doesn't have an option for, a typo, etc.) lands somewhere
+// visible on the deal instead of silently failing the whole sync.
+export async function resolveDealFields(candidates: { property: string; value: string | null | undefined }[]): Promise<{ properties: Record<string, string>; notes: string }> {
+  const properties: Record<string, string> = {};
+  const notesLines: string[] = [];
+
+  for (const { property, value } of candidates) {
+    if (!value) continue;
+    const resolution = await resolvePicklistValue("deals", property, value);
+    if (resolution.kind === "matched") {
+      properties[property] = resolution.value;
+    } else if (resolution.kind === "not-a-picklist") {
+      properties[property] = value;
+    } else {
+      notesLines.push(`${resolution.fieldLabel}: ${value}`);
+    }
+  }
+
+  return { properties, notes: notesLines.join("\n") };
+}
 
 export async function syncReferralToHubSpot(referralId: string) {
   const db = getDb();
@@ -35,6 +60,15 @@ export async function syncReferralToHubSpot(referralId: string) {
       await db.update(referrals).set({ hubspotContactId: contactId }).where(eq(referrals.id, referralId));
     }
 
+    const { properties: dealFieldProperties, notes: installNotes } = await resolveDealFields([
+      { property: "install_state", value: stateName(referral.state as "AZ" | "FL") },
+      { property: "install_zip", value: referral.zip },
+      { property: "year__c", value: referral.vehicleYear },
+      { property: "veh_make__c", value: referral.vehicleMake },
+      { property: "model__c", value: referral.vehicleModel },
+      { property: "insurance_provider_2", value: referral.insuranceProvider },
+    ]);
+
     const deal = await createDeal({
       contactId,
       dealName: `${referral.customerFirstName} ${referral.customerLastName} — ${referral.state} ${referral.zip}`,
@@ -42,12 +76,8 @@ export async function syncReferralToHubSpot(referralId: string) {
       dealstage: process.env.HUBSPOT_STAGE_NEW_ID,
       leadSource: LEAD_SOURCE,
       contactPhone: referral.customerPhone,
-      installState: stateName(referral.state as "AZ" | "FL"),
-      installZip: referral.zip,
-      vehicleYear: referral.vehicleYear,
-      vehicleMake: referral.vehicleMake,
-      vehicleModel: referral.vehicleModel,
-      insuranceProvider: referral.insuranceProvider,
+      extraProperties: dealFieldProperties,
+      installNotes: installNotes || undefined,
     });
     const stageLabel = await getDealStageLabel(process.env.HUBSPOT_PIPELINE_ID, deal.stage);
 

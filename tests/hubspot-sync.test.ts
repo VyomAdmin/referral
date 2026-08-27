@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import { computeDealEventUpdate } from "../app/lib/hubspot-sync.ts";
+import test, { afterEach, beforeEach, mock } from "node:test";
+import { computeDealEventUpdate, resolveDealFields } from "../app/lib/hubspot-sync.ts";
 import type { ReferralDealState } from "../app/lib/hubspot-sync.ts";
 import type { HubSpotWebhookEvent } from "../app/lib/hubspot.ts";
+
+const ORIGINAL_TOKEN = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
+
+beforeEach(() => {
+  process.env.HUBSPOT_PRIVATE_APP_TOKEN = "test-token";
+});
+
+afterEach(() => {
+  mock.reset();
+  process.env.HUBSPOT_PRIVATE_APP_TOKEN = ORIGINAL_TOKEN;
+});
 
 const baseReferral: ReferralDealState = { publicStatus: "received", hubspotStage: "New", installationCompletedAt: null };
 
@@ -58,4 +69,48 @@ test("publicStatus still advances forward normally after a prior stage regressio
   const scheduled: ReferralDealState = { publicStatus: "scheduled", hubspotStage: "New", installationCompletedAt: null };
   const update = computeDealEventUpdate(scheduled, dealEvent("status_code__c", "Install Completed"));
   assert.equal(update?.publicStatus, "installed");
+});
+
+function propertyDefinition(name: string, label: string, options: { label: string; value: string }[]) {
+  return { name, label, type: "enumeration", options };
+}
+
+test("resolveDealFields matches picklist values case-insensitively and passes non-picklist values through", async () => {
+  mock.method(globalThis, "fetch", async (url: string) => {
+    if (url.includes("resolve-state-a")) return new Response(JSON.stringify(propertyDefinition("resolve-state-a", "State", [{ label: "Arizona", value: "arizona" }])), { status: 200 });
+    if (url.includes("resolve-notes-field")) return new Response(JSON.stringify({ name: "resolve-notes-field", label: "Model", type: "string", options: [] }), { status: 200 });
+    throw new Error(`unexpected fetch: ${url}`);
+  });
+
+  const { properties, notes } = await resolveDealFields([
+    { property: "resolve-state-a", value: "ARIZONA" },
+    { property: "resolve-notes-field", value: "Camry" },
+  ]);
+  assert.deepEqual(properties, { "resolve-state-a": "arizona", "resolve-notes-field": "Camry" });
+  assert.equal(notes, "");
+});
+
+test("resolveDealFields routes an unmatched picklist value into notes instead of the property, keyed by the field's label", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    new Response(JSON.stringify(propertyDefinition("resolve-insurance-b", "Insurance Provider", [{ label: "GEICO", value: "geico" }])), { status: 200 }));
+
+  const { properties, notes } = await resolveDealFields([{ property: "resolve-insurance-b", value: "Acme Mutual" }]);
+  assert.deepEqual(properties, {});
+  assert.equal(notes, "Insurance Provider: Acme Mutual");
+});
+
+test("resolveDealFields skips candidates with no value and joins multiple unmatched notes with newlines", async () => {
+  mock.method(globalThis, "fetch", async (url: string) => {
+    if (url.includes("resolve-make-c")) return new Response(JSON.stringify(propertyDefinition("resolve-make-c", "Vehicle Make", [{ label: "Toyota", value: "toyota" }])), { status: 200 });
+    if (url.includes("resolve-provider-c")) return new Response(JSON.stringify(propertyDefinition("resolve-provider-c", "Insurance Provider", [{ label: "GEICO", value: "geico" }])), { status: 200 });
+    throw new Error(`unexpected fetch: ${url}`);
+  });
+
+  const { properties, notes } = await resolveDealFields([
+    { property: "resolve-make-c", value: "Delorean" },
+    { property: "resolve-provider-c", value: null },
+    { property: "resolve-provider-c", value: "Acme Mutual" },
+  ]);
+  assert.deepEqual(properties, {});
+  assert.equal(notes, "Vehicle Make: Delorean\nInsurance Provider: Acme Mutual");
 });

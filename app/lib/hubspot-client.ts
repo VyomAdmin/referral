@@ -122,12 +122,11 @@ export type HubSpotDealInput = {
   dealstage: string;
   leadSource: string;
   contactPhone: string;
-  installState: string;
-  installZip: string;
-  vehicleYear?: string | null;
-  vehicleMake?: string | null;
-  vehicleModel?: string | null;
-  insuranceProvider?: string | null;
+  // Already-resolved property values (see resolvePicklistValue) — e.g.
+  // { install_state: "Arizona", veh_make__c: "Toyota" }.
+  extraProperties?: Record<string, string>;
+  // Free text for anything that couldn't be placed in a picklist property.
+  installNotes?: string;
 };
 
 export async function createDeal(input: HubSpotDealInput): Promise<{ id: string; stage: string }> {
@@ -140,12 +139,8 @@ export async function createDeal(input: HubSpotDealInput): Promise<{ id: string;
         dealstage: input.dealstage,
         incoming_lead_source__c: input.leadSource,
         contact_phone_1__c: input.contactPhone,
-        install_state: input.installState,
-        install_zip: input.installZip,
-        ...(input.vehicleYear ? { year__c: input.vehicleYear } : {}),
-        ...(input.vehicleMake ? { veh_make__c: input.vehicleMake } : {}),
-        ...(input.vehicleModel ? { model__c: input.vehicleModel } : {}),
-        ...(input.insuranceProvider ? { insurance_provider_2: input.insuranceProvider } : {}),
+        ...input.extraProperties,
+        ...(input.installNotes ? { install_notes__c: input.installNotes } : {}),
       },
       associations: [
         {
@@ -156,4 +151,52 @@ export async function createDeal(input: HubSpotDealInput): Promise<{ id: string;
     }),
   });
   return { id: result.id, stage: result.properties?.dealstage ?? input.dealstage };
+}
+
+export type HubSpotPropertyOption = { label: string; value: string };
+export type HubSpotPropertyDefinition = { name: string; label: string; type: string; options: HubSpotPropertyOption[] };
+
+const propertyDefinitionCache = new Map<string, HubSpotPropertyDefinition | null>();
+
+async function getPropertyDefinition(objectType: string, propertyName: string): Promise<HubSpotPropertyDefinition | null> {
+  const cacheKey = `${objectType}:${propertyName}`;
+  if (propertyDefinitionCache.has(cacheKey)) return propertyDefinitionCache.get(cacheKey) ?? null;
+
+  try {
+    const result = await hubSpotFetch(`/crm/v3/properties/${objectType}/${propertyName}`, { method: "GET" });
+    const definition: HubSpotPropertyDefinition = {
+      name: result.name,
+      label: result.label ?? propertyName,
+      type: result.type,
+      options: Array.isArray(result.options) ? result.options.map((option: { label: string; value: string }) => ({ label: option.label, value: option.value })) : [],
+    };
+    propertyDefinitionCache.set(cacheKey, definition);
+    return definition;
+  } catch {
+    // A metadata lookup failing shouldn't be fatal — resolvePicklistValue's
+    // "not-a-picklist" fallback lets the caller send the raw value as-is,
+    // same tradeoff as getDealStageLabel falling back to the raw stage id.
+    propertyDefinitionCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+export type PicklistResolution =
+  | { kind: "not-a-picklist" }
+  | { kind: "matched"; value: string }
+  | { kind: "unmatched"; fieldLabel: string };
+
+// Picklist (enumeration) properties reject any value that isn't exactly one of
+// their defined options — a customer typing "toyota" against a "Toyota"
+// option, or a value HubSpot doesn't recognize at all, would otherwise fail
+// the whole deal create. Match case-insensitively against both the option's
+// internal value and its display label, and report back rather than guess
+// when there's no match, so the caller can route it to a notes field instead.
+export async function resolvePicklistValue(objectType: string, propertyName: string, rawValue: string): Promise<PicklistResolution> {
+  const definition = await getPropertyDefinition(objectType, propertyName);
+  if (!definition || definition.type !== "enumeration") return { kind: "not-a-picklist" };
+
+  const needle = rawValue.trim().toLowerCase();
+  const match = definition.options.find((option) => option.value.toLowerCase() === needle || option.label.toLowerCase() === needle);
+  return match ? { kind: "matched", value: match.value } : { kind: "unmatched", fieldLabel: definition.label };
 }

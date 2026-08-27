@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach, mock } from "node:test";
-import { createContact, createDeal, findContactByEmailOrPhone, getDealProperties, getDealStageLabel, HubSpotApiError } from "../app/lib/hubspot-client.ts";
+import { createContact, createDeal, findContactByEmailOrPhone, getDealProperties, getDealStageLabel, HubSpotApiError, resolvePicklistValue } from "../app/lib/hubspot-client.ts";
 
 const ORIGINAL_TOKEN = process.env.HUBSPOT_PRIVATE_APP_TOKEN;
 
@@ -57,7 +57,7 @@ test("createContact still throws a 409 whose body doesn't name an existing id", 
   );
 });
 
-test("createDeal sends the pipeline, stage, lead source, and contact association", async () => {
+test("createDeal sends the pipeline, stage, lead source, contact association, extra properties, and notes", async () => {
   let capturedBody = "";
   mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
     capturedBody = init.body as string;
@@ -70,12 +70,8 @@ test("createDeal sends the pipeline, stage, lead source, and contact association
     dealstage: "1012021141",
     leadSource: "Referral",
     contactPhone: "6025550001",
-    installState: "Arizona",
-    installZip: "85001",
-    vehicleYear: "2022",
-    vehicleMake: "Toyota",
-    vehicleModel: "Camry",
-    insuranceProvider: "GEICO",
+    extraProperties: { install_state: "Arizona", install_zip: "85001", veh_make__c: "Toyota" },
+    installNotes: "Insurance Provider: Acme Mutual",
   });
   assert.deepEqual(deal, { id: "deal-1", stage: "1012021141" });
   const body = JSON.parse(capturedBody);
@@ -85,14 +81,12 @@ test("createDeal sends the pipeline, stage, lead source, and contact association
   assert.equal(body.properties.contact_phone_1__c, "6025550001");
   assert.equal(body.properties.install_state, "Arizona");
   assert.equal(body.properties.install_zip, "85001");
-  assert.equal(body.properties.year__c, "2022");
   assert.equal(body.properties.veh_make__c, "Toyota");
-  assert.equal(body.properties.model__c, "Camry");
-  assert.equal(body.properties.insurance_provider_2, "GEICO");
+  assert.equal(body.properties.install_notes__c, "Insurance Provider: Acme Mutual");
   assert.equal(body.associations[0].to.id, "contact-2");
 });
 
-test("createDeal omits vehicle/insurance properties entirely when not provided, instead of sending empty strings", async () => {
+test("createDeal omits install_notes__c entirely when there are no notes", async () => {
   let capturedBody = "";
   mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
     capturedBody = init.body as string;
@@ -105,14 +99,34 @@ test("createDeal omits vehicle/insurance properties entirely when not provided, 
     dealstage: "1012021141",
     leadSource: "Referral",
     contactPhone: "3055550001",
-    installState: "Florida",
-    installZip: "33101",
   });
   const body = JSON.parse(capturedBody);
-  assert.equal("year__c" in body.properties, false);
-  assert.equal("veh_make__c" in body.properties, false);
-  assert.equal("model__c" in body.properties, false);
-  assert.equal("insurance_provider_2" in body.properties, false);
+  assert.equal("install_notes__c" in body.properties, false);
+});
+
+// Each test below queries a distinct property name — getPropertyDefinition
+// caches by "objectType:propertyName" for the life of the process, so reusing
+// a name across tests with different mocked option lists would silently
+// return a previous test's cached (and now stale) definition.
+test("resolvePicklistValue matches case-insensitively against option value or label", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    new Response(JSON.stringify({ name: "veh_make__c", label: "Vehicle Make", type: "enumeration", options: [{ label: "Toyota", value: "toyota" }, { label: "Honda", value: "honda" }] }), { status: 200 }));
+  assert.deepEqual(await resolvePicklistValue("deals", "veh_make__c", "TOYOTA"), { kind: "matched", value: "toyota" });
+  assert.deepEqual(await resolvePicklistValue("deals", "veh_make__c", "honda"), { kind: "matched", value: "honda" });
+});
+
+test("resolvePicklistValue reports unmatched with the property's display label", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    new Response(JSON.stringify({ name: "insurance_provider_2", label: "Insurance Provider", type: "enumeration", options: [{ label: "GEICO", value: "geico" }] }), { status: 200 }));
+  assert.deepEqual(await resolvePicklistValue("deals", "insurance_provider_2", "Delorean Mutual"), { kind: "unmatched", fieldLabel: "Insurance Provider" });
+});
+
+test("resolvePicklistValue treats non-enumeration properties and failed lookups as not-a-picklist", async () => {
+  mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ name: "model__c", label: "Model", type: "string", options: [] }), { status: 200 }));
+  assert.deepEqual(await resolvePicklistValue("deals", "model__c", "Camry"), { kind: "not-a-picklist" });
+
+  mock.method(globalThis, "fetch", async () => new Response("nope", { status: 500 }));
+  assert.deepEqual(await resolvePicklistValue("deals", "unknown__c", "anything"), { kind: "not-a-picklist" });
 });
 
 test("a non-2xx HubSpot response surfaces as HubSpotApiError with the status code", async () => {
