@@ -167,6 +167,17 @@ export const verificationAttempts = pgTable("verification_attempts", {
   attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
+// One row per customer ZIP entry that falls outside serviceableZips.json —
+// the single place ops looks to see real demand outside the current service
+// area, to prioritize expansion instead of guessing from anecdotes.
+export const nonServiceableZipAttempts = pgTable("non_serviceable_zip_attempts", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").references(() => organizations.id),
+  zip: text("zip").notNull(),
+  referrerCode: text("referrer_code"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+
 export const auditEvents = pgTable("audit_events", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull().references(() => organizations.id),

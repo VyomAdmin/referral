@@ -12,7 +12,8 @@
     "test": "npm run build && node --experimental-strip-types --test tests/*.test.ts tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "verify:hubspot-picklists": "node scripts/verify-hubspot-picklists.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

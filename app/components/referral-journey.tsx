@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { campaignForZip, isValidPhone, StateCampaign } from "../lib/referral-rules";
+import { FormEvent, useMemo, useState } from "react";
+import { campaignForZip, isValidEmail, isValidPhone, StateCampaign } from "../lib/referral-rules";
 import { submitCustomerReferralAction } from "../lib/referral-actions";
+import { recordNonServiceableZipAction } from "../lib/service-area-actions";
+import { INSURANCE_PROVIDERS, isServiceableZipPrefix } from "../lib/service-area";
 
 type Lead = {
   name: string;
@@ -30,6 +32,12 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
   const [submitted, setSubmitted] = useState(false);
   const [trackPath, setTrackPath] = useState("/track/customer/demo");
 
+  // Live feedback as the customer types, before they've entered all 5 digits
+  // or clicked Continue — as soon as we have a 3-digit prefix, we already
+  // know whether it's serviceable (serviceableZips.json is prefix-based).
+  const zipPrefixKnown = zip.length >= 3;
+  const zipPrefixServiceable = useMemo(() => (zipPrefixKnown ? isServiceableZipPrefix(zip) : true), [zip, zipPrefixKnown]);
+
   function findCampaign(event: FormEvent) {
     event.preventDefault();
     if (!/^\d{5}$/.test(zip)) {
@@ -40,12 +48,13 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
     setCampaign(match);
     setUnsupported(!match);
     setZipError("");
+    if (!match) recordNonServiceableZipAction(zip, code).catch(() => {});
   }
 
   async function submitLead(event: FormEvent) {
     event.preventDefault();
     const complete = Object.values(lead).every((value) => value.trim());
-    if (!complete || !/^\S+@\S+\.\S+$/.test(lead.email) || !isValidPhone(lead.phone)) {
+    if (!complete || !isValidEmail(lead.email) || !isValidPhone(lead.phone)) {
       setFormError("Complete every field, including a valid email and a 10-digit mobile number.");
       return;
     }
@@ -117,9 +126,13 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
             <p>Enter your ZIP to see local availability and referral benefits.</p>
             <label>
               ZIP code
-              <input value={zip} onChange={(event) => setZip(event.target.value.replace(/\D/g, "").slice(0, 5))} inputMode="numeric" autoComplete="postal-code" placeholder="85001" aria-describedby="zip-help" />
+              <input value={zip} onChange={(event) => setZip(event.target.value.replace(/\D/g, "").slice(0, 5))} inputMode="numeric" autoComplete="postal-code" placeholder="85001" aria-describedby="zip-help" aria-invalid={zipPrefixKnown && !zipPrefixServiceable} />
             </label>
-            <small id="zip-help">Try 85001 for Arizona or 33101 for Florida.</small>
+            {zipPrefixKnown && !zipPrefixServiceable ? (
+              <p className="form-error" role="alert">Not serviceable — that ZIP is outside our current coverage area.</p>
+            ) : (
+              <small id="zip-help">Try 85001 for Arizona or 33101 for Florida.</small>
+            )}
             {zipError ? <p className="form-error" role="alert">{zipError}</p> : null}
             <button className="button button-primary" type="submit">Continue</button>
           </form>
@@ -156,7 +169,7 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
               <label>Vehicle make<input value={lead.make} onChange={(event) => update("make", event.target.value)} placeholder="Toyota" /></label>
               <label>Year<input value={lead.year} onChange={(event) => update("year", event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="2022" /></label>
               <label>Model<input value={lead.model} onChange={(event) => update("model", event.target.value)} placeholder="Camry" /></label>
-              <label>Insurance provider<select value={lead.insurance} onChange={(event) => update("insurance", event.target.value)}><option value="">Select one</option><option>State Farm</option><option>GEICO</option><option>Progressive</option><option>Allstate</option><option>Paying cash</option><option>Other</option></select></label>
+              <label>Insurance provider<select value={lead.insurance} onChange={(event) => update("insurance", event.target.value)}><option value="">Select one</option>{INSURANCE_PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}</select></label>
             </div>
             {formError ? <p className="form-error" role="alert">{formError}</p> : null}
             <label className="consent-row"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required /> <span>I agree to the program terms and consent to service communications.</span></label>

@@ -22,6 +22,12 @@ test("rejects malformed and unsupported ZIP codes", () => {
   assert.equal(campaignForZip("80202"), null);
 });
 
+test("rejects a ZIP inside the old AZ/FL numeric range that serviceableZips.json doesn't actually list", () => {
+  // 858 and 340 are within 850-865 / 320-349 but absent from serviceableZips.json.
+  assert.equal(campaignForZip("85800"), null);
+  assert.equal(campaignForZip("34000"), null);
+});
+
 test("creates branded referral codes without personal information", () => {
   assert.equal(createReferralCode("Sandeep", "Jha", 1723456789012), "NV-SJ-9012");
 });

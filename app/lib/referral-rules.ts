@@ -1,3 +1,5 @@
+import { isServiceableZipPrefix } from "./service-area.ts";
+
 export type StateCampaign = {
   state: "AZ" | "FL";
   stateName: string;
@@ -31,6 +33,7 @@ const campaigns: Record<StateCampaign["state"], StateCampaign> = {
 
 export function campaignForZip(zip: string): StateCampaign | null {
   if (!/^\d{5}$/.test(zip)) return null;
+  if (!isServiceableZipPrefix(zip)) return null;
   const prefix = Number(zip.slice(0, 3));
   if (prefix >= 850 && prefix <= 865) return campaigns.AZ;
   if (prefix >= 320 && prefix <= 349) return campaigns.FL;
