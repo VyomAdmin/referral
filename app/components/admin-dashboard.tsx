@@ -9,15 +9,18 @@ import type { AdminCampaign, AdminEmailEvent, AdminReferrerStats } from "../lib/
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
 import { markReferralPaidAction, retryHubSpotSyncsAction, retrySingleHubSpotSyncAction, updateCampaignAction, updateReferralContactAction } from "../lib/admin-actions";
+import { activateEmailTemplateAction, activateSmsTemplateAction, createEmailTemplateAction, createSmsTemplateAction, deleteEmailTemplateAction, deleteSmsTemplateAction, updateEmailTemplateAction, updateSmsTemplateAction } from "../lib/template-actions";
+import type { CampaignEmailTemplate, CampaignSmsTemplate } from "../lib/campaign-templates";
 import { ADMIN_ROLES } from "../lib/roles";
 import { ThemeToggleIcon } from "./theme-toggle";
 
-type Section = "overview" | "referrals" | "campaigns" | "rewards" | "emails" | "analytics" | "integrations" | "settings";
+type Section = "overview" | "referrals" | "campaigns" | "templates" | "rewards" | "emails" | "analytics" | "integrations" | "settings";
 
 const sections: { key: Section; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "⌂" },
   { key: "referrals", label: "Referrals & people", icon: "↗" },
   { key: "campaigns", label: "Campaigns & states", icon: "◎" },
+  { key: "templates", label: "Message templates", icon: "✎" },
   { key: "rewards", label: "Rewards", icon: "$" },
   { key: "emails", label: "Emails", icon: "✉" },
   { key: "analytics", label: "Analytics", icon: "▥" },
@@ -43,12 +46,15 @@ function initials(name: string) {
   return name.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 }
 
-export function AdminDashboard({ currentUser, signOutAction, teamMembers, initialReferrals, initialCampaigns, referrerStats, emailEvents, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
+export function AdminDashboard({ currentUser, signOutAction, teamMembers, initialReferrals, initialCampaigns, initialEmailTemplates, initialSmsTemplates, integrationsStatus, referrerStats, emailEvents, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
   currentUser: { name: string; role: string };
   signOutAction: () => Promise<void>;
   teamMembers: TeamMember[];
   initialReferrals: AdminReferral[];
   initialCampaigns: AdminCampaign[];
+  initialEmailTemplates: CampaignEmailTemplate[];
+  initialSmsTemplates: CampaignSmsTemplate[];
+  integrationsStatus: { hubspotConfigured: boolean; gmailConfigured: boolean; twilioConfigured: boolean };
   referrerStats: AdminReferrerStats;
   emailEvents: AdminEmailEvent[];
   totpEnabled: boolean;
@@ -63,6 +69,9 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
   const [referrals, setReferrals] = useState(initialReferrals);
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [editingCampaign, setEditingCampaign] = useState<AdminCampaign | null>(null);
+  const [emailTemplates, setEmailTemplates] = useState(initialEmailTemplates);
+  const [smsTemplates, setSmsTemplates] = useState(initialSmsTemplates);
+  const [editingTemplate, setEditingTemplate] = useState<{ kind: "email" | "sms"; campaignId: string; template: CampaignEmailTemplate | CampaignSmsTemplate | null } | null>(null);
   const [notice, setNotice] = useState("");
   const [retryingSync, setRetryingSync] = useState(false);
   const [retryingSingleSync, setRetryingSingleSync] = useState(false);
@@ -145,6 +154,62 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
     return true;
   }
 
+  async function saveEmailTemplate(campaignId: string, existing: CampaignEmailTemplate | null, input: { name: string; subject: string; bodyHtml: string; bodyText: string }) {
+    const result = existing
+      ? await updateEmailTemplateAction(existing.id, input)
+      : await createEmailTemplateAction({ campaignId, ...input });
+    if (!result.ok) { setNotice(result.error); return false; }
+    setEmailTemplates((current) => existing ? current.map((t) => t.id === result.value.id ? result.value : t) : [result.value, ...current]);
+    setNotice(`"${result.value.name}" was saved as a draft.`);
+    return true;
+  }
+
+  async function saveSmsTemplate(campaignId: string, existing: CampaignSmsTemplate | null, input: { name: string; body: string }) {
+    const result = existing
+      ? await updateSmsTemplateAction(existing.id, input)
+      : await createSmsTemplateAction({ campaignId, ...input });
+    if (!result.ok) { setNotice(result.error); return false; }
+    setSmsTemplates((current) => existing ? current.map((t) => t.id === result.value.id ? result.value : t) : [result.value, ...current]);
+    setNotice(`"${result.value.name}" was saved as a draft.`);
+    return true;
+  }
+
+  async function activateEmailTemplate(id: string) {
+    const result = await activateEmailTemplateAction(id);
+    if (!result.ok) { setNotice(result.error); return; }
+    setEmailTemplates((current) => {
+      const campaignId = result.value[0]?.campaignId;
+      const others = current.filter((t) => t.campaignId !== campaignId);
+      return [...others, ...result.value];
+    });
+    setNotice("Email template activated. It now sends to referrers for this campaign.");
+  }
+
+  async function activateSmsTemplate(id: string) {
+    const result = await activateSmsTemplateAction(id);
+    if (!result.ok) { setNotice(result.error); return; }
+    setSmsTemplates((current) => {
+      const campaignId = result.value[0]?.campaignId;
+      const others = current.filter((t) => t.campaignId !== campaignId);
+      return [...others, ...result.value];
+    });
+    setNotice("SMS template activated. It now sends to referrers for this campaign.");
+  }
+
+  async function deleteEmailTemplate(id: string) {
+    const result = await deleteEmailTemplateAction(id);
+    if (!result.ok) { setNotice(result.error); return; }
+    setEmailTemplates((current) => current.filter((t) => t.id !== id));
+    setNotice("Email template deleted.");
+  }
+
+  async function deleteSmsTemplate(id: string) {
+    const result = await deleteSmsTemplateAction(id);
+    if (!result.ok) { setNotice(result.error); return; }
+    setSmsTemplates((current) => current.filter((t) => t.id !== id));
+    setNotice("SMS template deleted.");
+  }
+
   return (
     <main className="admin-app">
       <aside className="admin-sidebar">
@@ -177,10 +242,25 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
             <ReferralsView query={query} setQuery={setQuery} stateFilter={stateFilter} setStateFilter={setStateFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} referrals={filteredReferrals} onSelect={setSelected} />
           ) : null}
           {section === "campaigns" ? <CampaignsView campaigns={campaigns} referrals={referrals} onEdit={setEditingCampaign} /> : null}
+          {section === "templates" ? (
+            <TemplatesView
+              campaigns={campaigns}
+              emailTemplates={emailTemplates}
+              smsTemplates={smsTemplates}
+              onNewEmail={(campaignId) => setEditingTemplate({ kind: "email", campaignId, template: null })}
+              onEditEmail={(campaignId, template) => setEditingTemplate({ kind: "email", campaignId, template })}
+              onActivateEmail={activateEmailTemplate}
+              onDeleteEmail={deleteEmailTemplate}
+              onNewSms={(campaignId) => setEditingTemplate({ kind: "sms", campaignId, template: null })}
+              onEditSms={(campaignId, template) => setEditingTemplate({ kind: "sms", campaignId, template })}
+              onActivateSms={activateSmsTemplate}
+              onDeleteSms={deleteSmsTemplate}
+            />
+          ) : null}
           {section === "rewards" ? <RewardsView referrals={referrals} onPay={markPaid} /> : null}
           {section === "emails" ? <EmailsView emailEvents={emailEvents} /> : null}
           {section === "analytics" ? <AnalyticsView referrals={referrals} /> : null}
-          {section === "integrations" ? <IntegrationsView /> : null}
+          {section === "integrations" ? <IntegrationsView status={integrationsStatus} /> : null}
           {section === "settings" ? (
             <SettingsView currentUserRole={currentUser.role} teamMembers={teamMembers} totpEnabled={totpEnabled} totpSecret={totpSecret} totpQrCodeDataUrl={totpQrCodeDataUrl} signOutAction={signOutAction} />
           ) : null}
@@ -189,6 +269,22 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
 
       {selected ? <ReferralDrawer key={selected.id} referral={selected} onClose={() => setSelected(null)} onPay={markPaid} onMintTrackerLink={mintTrackerLink} onRetrySync={retrySingleSync} onSaveContactAndRetry={saveContactAndRetry} retryingSync={retryingSingleSync} /> : null}
       {editingCampaign ? <CampaignEditDrawer campaign={editingCampaign} onClose={() => setEditingCampaign(null)} onSave={saveCampaign} /> : null}
+      {editingTemplate?.kind === "email" ? (
+        <EmailTemplateDrawer
+          campaignId={editingTemplate.campaignId}
+          template={editingTemplate.template as CampaignEmailTemplate | null}
+          onClose={() => setEditingTemplate(null)}
+          onSave={async (campaignId, existing, input) => { const ok = await saveEmailTemplate(campaignId, existing, input); if (ok) setEditingTemplate(null); }}
+        />
+      ) : null}
+      {editingTemplate?.kind === "sms" ? (
+        <SmsTemplateDrawer
+          campaignId={editingTemplate.campaignId}
+          template={editingTemplate.template as CampaignSmsTemplate | null}
+          onClose={() => setEditingTemplate(null)}
+          onSave={async (campaignId, existing, input) => { const ok = await saveSmsTemplate(campaignId, existing, input); if (ok) setEditingTemplate(null); }}
+        />
+      ) : null}
     </main>
   );
 }
@@ -330,6 +426,139 @@ function CampaignEditDrawer({ campaign, onClose, onSave }: { campaign: AdminCamp
   );
 }
 
+function TemplatesView({ campaigns, emailTemplates, smsTemplates, onNewEmail, onEditEmail, onActivateEmail, onDeleteEmail, onNewSms, onEditSms, onActivateSms, onDeleteSms }: {
+  campaigns: AdminCampaign[];
+  emailTemplates: CampaignEmailTemplate[];
+  smsTemplates: CampaignSmsTemplate[];
+  onNewEmail: (campaignId: string) => void;
+  onEditEmail: (campaignId: string, template: CampaignEmailTemplate) => void;
+  onActivateEmail: (id: string) => void;
+  onDeleteEmail: (id: string) => void;
+  onNewSms: (campaignId: string) => void;
+  onEditSms: (campaignId: string, template: CampaignSmsTemplate) => void;
+  onActivateSms: (id: string) => void;
+  onDeleteSms: (id: string) => void;
+}) {
+  return (
+    <>
+      <PageTitle eyebrow="REFERRER COMMUNICATIONS" title="Message templates" description="One active email and one active SMS per campaign send to referrers. Everything else stays a draft until activated." />
+      {campaigns.map((campaign) => {
+        const campaignEmails = emailTemplates.filter((t) => t.campaignId === campaign.id);
+        const campaignSms = smsTemplates.filter((t) => t.campaignId === campaign.id);
+        return (
+          <article className="admin-card template-campaign-card" key={campaign.id}>
+            <div className="admin-card-head"><div><span>{campaign.state}</span><h2>{campaign.name}</h2></div></div>
+            <div className="template-columns">
+              <div>
+                <div className="template-column-head"><h3>Email ({campaignEmails.length})</h3><button className="text-button" onClick={() => onNewEmail(campaign.id)} type="button">+ New</button></div>
+                {campaignEmails.length === 0 ? <p className="template-empty">No email templates yet — referrer emails fall back to the built-in default copy.</p> : null}
+                {campaignEmails.map((template) => (
+                  <div className="template-row" key={template.id}>
+                    <div><strong>{template.name}</strong><small>{template.subject}</small></div>
+                    <span className={template.isActive ? "active-dot" : "paused-dot"}>{template.isActive ? "Active" : "Draft"}</span>
+                    <div className="template-row-actions">
+                      <button className="text-button" onClick={() => onEditEmail(campaign.id, template)} type="button">Edit</button>
+                      {!template.isActive ? <button className="text-button" onClick={() => onActivateEmail(template.id)} type="button">Activate</button> : null}
+                      {!template.isActive ? <button className="text-button" onClick={() => onDeleteEmail(template.id)} type="button">Delete</button> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="template-column-head"><h3>SMS ({campaignSms.length})</h3><button className="text-button" onClick={() => onNewSms(campaign.id)} type="button">+ New</button></div>
+                {campaignSms.length === 0 ? <p className="template-empty">No SMS templates yet — referrer texts fall back to the built-in default copy.</p> : null}
+                {campaignSms.map((template) => (
+                  <div className="template-row" key={template.id}>
+                    <div><strong>{template.name}</strong><small>{template.body.slice(0, 60)}{template.body.length > 60 ? "…" : ""}</small></div>
+                    <span className={template.isActive ? "active-dot" : "paused-dot"}>{template.isActive ? "Active" : "Draft"}</span>
+                    <div className="template-row-actions">
+                      <button className="text-button" onClick={() => onEditSms(campaign.id, template)} type="button">Edit</button>
+                      {!template.isActive ? <button className="text-button" onClick={() => onActivateSms(template.id)} type="button">Activate</button> : null}
+                      {!template.isActive ? <button className="text-button" onClick={() => onDeleteSms(template.id)} type="button">Delete</button> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </>
+  );
+}
+
+const EMAIL_TOKENS = "{{first_name}} {{referrer_name}} {{referral_link}} {{campaign_name}} {{state_name}} {{reward_amount}}";
+
+function EmailTemplateDrawer({ campaignId, template, onClose, onSave }: {
+  campaignId: string;
+  template: CampaignEmailTemplate | null;
+  onClose: () => void;
+  onSave: (campaignId: string, existing: CampaignEmailTemplate | null, input: { name: string; subject: string; bodyHtml: string; bodyText: string }) => void;
+}) {
+  const [name, setName] = useState(template?.name ?? "");
+  const [subject, setSubject] = useState(template?.subject ?? "");
+  const [bodyHtml, setBodyHtml] = useState(template?.bodyHtml ?? "");
+  const [bodyText, setBodyText] = useState(template?.bodyText ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    await onSave(campaignId, template, { name, subject, bodyHtml, bodyText });
+    setSaving(false);
+  }
+
+  return (
+    <div className="drawer-backdrop">
+      <button className="drawer-close-backdrop" onClick={onClose} aria-label="Close template editor" type="button" />
+      <aside className="referral-drawer">
+        <header><div><span>EMAIL TEMPLATE</span><h2>{template ? "Edit template" : "New template"}</h2></div><button onClick={onClose} type="button">×</button></header>
+        <form className="settings-panel-card admin-card" onSubmit={submit}>
+          <label>Internal name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="AZ referrer — spring promo" required /></label>
+          <label>Subject<input value={subject} onChange={(event) => setSubject(event.target.value)} required /></label>
+          <label>Body (HTML)<textarea value={bodyHtml} onChange={(event) => setBodyHtml(event.target.value)} rows={8} required /></label>
+          <label>Body (plain text, optional)<textarea value={bodyText} onChange={(event) => setBodyText(event.target.value)} rows={4} /></label>
+          <p className="template-token-hint">Available tokens: <code>{EMAIL_TOKENS}</code></p>
+          <footer><button className="button button-secondary" onClick={onClose} type="button">Cancel</button><button className="button button-primary" disabled={saving} type="submit">{saving ? "Saving…" : "Save as draft"}</button></footer>
+        </form>
+      </aside>
+    </div>
+  );
+}
+
+function SmsTemplateDrawer({ campaignId, template, onClose, onSave }: {
+  campaignId: string;
+  template: CampaignSmsTemplate | null;
+  onClose: () => void;
+  onSave: (campaignId: string, existing: CampaignSmsTemplate | null, input: { name: string; body: string }) => void;
+}) {
+  const [name, setName] = useState(template?.name ?? "");
+  const [body, setBody] = useState(template?.body ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    await onSave(campaignId, template, { name, body });
+    setSaving(false);
+  }
+
+  return (
+    <div className="drawer-backdrop">
+      <button className="drawer-close-backdrop" onClick={onClose} aria-label="Close template editor" type="button" />
+      <aside className="referral-drawer">
+        <header><div><span>SMS TEMPLATE</span><h2>{template ? "Edit template" : "New template"}</h2></div><button onClick={onClose} type="button">×</button></header>
+        <form className="settings-panel-card admin-card" onSubmit={submit}>
+          <label>Internal name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="AZ referrer — spring promo" required /></label>
+          <label>Message<textarea value={body} onChange={(event) => setBody(event.target.value)} rows={5} required /></label>
+          <p className="template-token-hint">Available tokens: <code>{EMAIL_TOKENS}</code> · {body.length} chars ({Math.ceil((body.length || 1) / 160)} segment{Math.ceil((body.length || 1) / 160) === 1 ? "" : "s"})</p>
+          <footer><button className="button button-secondary" onClick={onClose} type="button">Cancel</button><button className="button button-primary" disabled={saving} type="submit">{saving ? "Saving…" : "Save as draft"}</button></footer>
+        </form>
+      </aside>
+    </div>
+  );
+}
+
 type RewardStatusFilter = "All statuses" | "scheduled" | "installed" | "paid";
 
 function RewardsView({ referrals, onPay }: { referrals: AdminReferral[]; onPay: (referral: AdminReferral) => void }) {
@@ -417,7 +646,30 @@ function AnalyticsView({ referrals }: { referrals: AdminReferral[] }) {
   return <><PageTitle eyebrow="PERFORMANCE" title="Referral analytics" description="Understand volume, conversion, markets, and reward efficiency." /><div className="analytics-grid"><section className="admin-card"><div className="admin-card-head"><div><span>MONTHLY VOLUME</span><h2>Forms and installations</h2></div></div><div className="bar-chart">{monthly.map((bar) => <div key={bar.label}><i style={{ height: `${bar.formsHeight}%` }} /><b style={{ height: `${bar.installedHeight}%` }} /><span>{bar.label}</span></div>)}</div></section><section className="admin-card market-performance"><div className="admin-card-head"><div><span>BY MARKET</span><h2>Installation conversion</h2></div></div>{marketBreakdown.length === 0 ? <p className="empty-table">No referrals yet.</p> : marketBreakdown.map(({ state, rate }) => <div key={state}><span>{state}</span><div><i style={{ width: `${rate}%` }} /></div><strong>{rate}%</strong></div>)}</section></div></>;
 }
 
-function IntegrationsView() { return <><PageTitle eyebrow="SYSTEM HEALTH" title="Integrations" description="Test mappings and workflows before your developers connect production services." /><div className="integration-grid"><article className="admin-card integration-card"><div className="integration-logo hubspot-logo">H</div><div><span className="paused-dot">Simulated</span><h2>HubSpot CRM</h2><p>Contacts, deals, stage changes, and installation completion use seeded test events.</p></div><dl><div><dt>CRM writes</dt><dd>Disabled</dd></div><div><dt>Webhook endpoint</dt><dd>Awaiting secret</dd></div><div><dt>Test mapping</dt><dd>15 checks passed</dd></div></dl></article><article className="admin-card integration-card"><div className="integration-logo email-logo">@</div><div><span className="paused-dot">Simulated</span><h2>Transactional email</h2><p>Templates and event previews are active. No messages leave the application.</p></div><dl><div><dt>Live sending</dt><dd>Disabled</dd></div><div><dt>Templates</dt><dd>6 configured</dd></div><div><dt>Provider</dt><dd>Choose before launch</dd></div></dl></article></div></>; }
+function IntegrationsView({ status }: { status: { hubspotConfigured: boolean; gmailConfigured: boolean; twilioConfigured: boolean } }) {
+  return (
+    <>
+      <PageTitle eyebrow="SYSTEM HEALTH" title="Integrations" description="Live send status for the services this app talks to." />
+      <div className="integration-grid">
+        <article className="admin-card integration-card">
+          <div className="integration-logo hubspot-logo">H</div>
+          <div><span className={status.hubspotConfigured ? "active-dot" : "paused-dot"}>{status.hubspotConfigured ? "Live" : "Not configured"}</span><h2>HubSpot CRM</h2><p>Contacts, deals, stage changes, and installation completion sync to real HubSpot records.</p></div>
+          <dl><div><dt>CRM writes</dt><dd>{status.hubspotConfigured ? "Enabled" : "Disabled"}</dd></div><div><dt>Webhook endpoint</dt><dd>{status.hubspotConfigured ? "Verified" : "Awaiting secret"}</dd></div></dl>
+        </article>
+        <article className="admin-card integration-card">
+          <div className="integration-logo email-logo">@</div>
+          <div><span className={status.gmailConfigured ? "active-dot" : "paused-dot"}>{status.gmailConfigured ? "Live" : "Not configured"}</span><h2>Referrer email (Gmail)</h2><p>Sends the active campaign email template — or the built-in default — to referrers via Gmail SMTP.</p></div>
+          <dl><div><dt>Live sending</dt><dd>{status.gmailConfigured ? "Enabled" : "Disabled"}</dd></div><div><dt>Provider</dt><dd>Gmail (SMTP app password)</dd></div></dl>
+        </article>
+        <article className="admin-card integration-card">
+          <div className="integration-logo email-logo">✉</div>
+          <div><span className={status.twilioConfigured ? "active-dot" : "paused-dot"}>{status.twilioConfigured ? "Live" : "Not configured"}</span><h2>Referrer SMS (Twilio)</h2><p>Sends the active campaign SMS template — or the built-in default — to referrers via the Twilio Messages API.</p></div>
+          <dl><div><dt>Live sending</dt><dd>{status.twilioConfigured ? "Enabled" : "Disabled"}</dd></div><div><dt>Provider</dt><dd>Twilio</dd></div></dl>
+        </article>
+      </div>
+    </>
+  );
+}
 
 function SettingsView({ currentUserRole, teamMembers, totpEnabled, totpSecret, totpQrCodeDataUrl, signOutAction }: {
   currentUserRole: string;

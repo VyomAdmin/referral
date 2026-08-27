@@ -6,6 +6,7 @@ import { INSTALLATION_COMPLETED_PROPERTY, INSTALLATION_COMPLETED_VALUE, mapHubSp
 import type { HubSpotWebhookEvent } from "./hubspot.ts";
 import { notifyOps } from "./ops-alerts.ts";
 import { stateName } from "./referral-rules.ts";
+import { notifyReferrerOfReferralStatus } from "./referrer-notifications.ts";
 
 const LEAD_SOURCE = "Referral";
 
@@ -166,6 +167,9 @@ export async function applyHubSpotDealEvent(event: HubSpotWebhookEvent) {
   if (!update) return;
 
   await db.update(referrals).set(update).where(eq(referrals.id, referral.id));
+  if (update.publicStatus !== referral.publicStatus) {
+    notifyReferrerOfReferralStatus(referral, update.publicStatus).catch(() => {});
+  }
 }
 
 // Backstop for the webhook: pulls the deal's current dealstage and
@@ -200,5 +204,8 @@ export async function reconcileReferralFromHubSpot(referralId: string) {
 
   if (Object.keys(combined).length > 0) {
     await db.update(referrals).set(combined).where(eq(referrals.id, referralId));
+    if ("publicStatus" in combined && combined.publicStatus !== referral.publicStatus) {
+      notifyReferrerOfReferralStatus(referral, combined.publicStatus).catch(() => {});
+    }
   }
 }

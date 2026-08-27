@@ -6,6 +6,8 @@ import { auth, requireRole, signOut } from "../lib/auth";
 import { ADMIN_ROLES } from "../lib/roles";
 import { generateTotpSecret, totpEnrollmentQrCode } from "../lib/totp";
 import { getAdminCampaigns, getAdminEmailEvents, getAdminReferrals, getAdminReferrerStats } from "../lib/admin-queries";
+import { getCampaignEmailTemplates, getCampaignSmsTemplates } from "../lib/campaign-templates.ts";
+import type { CampaignEmailTemplate, CampaignSmsTemplate } from "../lib/campaign-templates.ts";
 import type { AdminReferral } from "../lib/admin-data";
 import type { AdminCampaign, AdminEmailEvent, AdminReferrerStats } from "../lib/admin-queries";
 
@@ -33,6 +35,17 @@ export default async function AdminPage() {
     ]);
   }
 
+  let emailTemplates: CampaignEmailTemplate[] = [];
+  let smsTemplates: CampaignSmsTemplate[] = [];
+  if (campaigns.length > 0) {
+    const [emailLists, smsLists] = await Promise.all([
+      Promise.all(campaigns.map((campaign) => getCampaignEmailTemplates(campaign.id))),
+      Promise.all(campaigns.map((campaign) => getCampaignSmsTemplates(campaign.id))),
+    ]);
+    emailTemplates = emailLists.flat();
+    smsTemplates = smsLists.flat();
+  }
+
   let totpEnabled = false;
   let totpSecret = "";
   let totpQrCodeDataUrl = "";
@@ -44,6 +57,12 @@ export default async function AdminPage() {
       totpQrCodeDataUrl = await totpEnrollmentQrCode(user.email, totpSecret);
     }
   }
+
+  const integrationsStatus = {
+    hubspotConfigured: Boolean(process.env.HUBSPOT_PIPELINE_ID && process.env.HUBSPOT_PRIVATE_APP_TOKEN),
+    gmailConfigured: Boolean(process.env.GMAIL_SENDER_EMAIL && process.env.GMAIL_APP_PASSWORD),
+    twilioConfigured: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER),
+  };
 
   async function signOutAction() {
     "use server";
@@ -57,6 +76,9 @@ export default async function AdminPage() {
       teamMembers={members}
       initialReferrals={referrals}
       initialCampaigns={campaigns}
+      initialEmailTemplates={emailTemplates}
+      initialSmsTemplates={smsTemplates}
+      integrationsStatus={integrationsStatus}
       referrerStats={referrerStats}
       emailEvents={emailEvents}
       totpEnabled={totpEnabled}

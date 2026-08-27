@@ -478,6 +478,20 @@ a { color: inherit; }
 .campaign-admin-card h2 { margin: 20px 0 6px; font-size: 18px; }.campaign-admin-card > p { margin: 0; color: var(--muted); font-size: 10px; }
 .campaign-admin-card dl { margin: 22px 0 18px; }.campaign-admin-card dl > div { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 9px; }.campaign-admin-card dt { color: var(--muted); }.campaign-admin-card dd { margin: 0; font-weight: 700; }
 .campaign-edit { width: 100%; min-height: 37px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--blue-700); font-size: 9px; font-weight: 750; cursor: pointer; }
+.template-campaign-card { padding: 22px; margin-bottom: 16px; }
+.template-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 18px; }
+.template-column-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.template-column-head h3 { margin: 0; font-size: 12px; color: var(--muted); }
+.template-empty { color: var(--muted-2); font-size: 10px; padding: 12px 0; }
+.template-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.template-row:last-child { border-bottom: 0; }
+.template-row div:first-child { display: grid; gap: 2px; min-width: 0; }
+.template-row strong { font-size: 11px; }
+.template-row small { color: var(--muted-2); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.template-row-actions { display: flex; gap: 8px; }
+.template-token-hint { color: var(--muted-2); font-size: 10px; }
+.template-token-hint code { color: var(--blue-700); }
+@media (max-width: 720px) { .template-columns { grid-template-columns: 1fr; } }
 .reward-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }.reward-summary article { display: grid; gap: 7px; padding: 19px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }.reward-summary span { color: var(--muted); font-size: 9px; }.reward-summary strong { font-size: 26px; }
 .admin-pagination { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 15px; border-top: 1px solid var(--line); background: var(--surface-soft); font-size: 9px; color: var(--muted-2); }
 .admin-pagination-controls { display: flex; align-items: center; gap: 10px; }

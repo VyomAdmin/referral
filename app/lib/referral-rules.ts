@@ -44,6 +44,10 @@ export function stateName(state: StateCampaign["state"]): string {
   return campaigns[state].stateName;
 }
 
+export function campaignForState(state: StateCampaign["state"]): StateCampaign {
+  return campaigns[state];
+}
+
 export function isValidPhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
   return digits.length === 10 || (digits.length === 11 && digits.startsWith("1"));

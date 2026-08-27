@@ -5,6 +5,7 @@ import { referrers } from "../../db/schema.ts";
 import { getDefaultOrganizationId } from "./organization.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
 import { createReferralCode, isValidEmail, isValidPhone } from "./referral-rules.ts";
+import { notifyReferrer } from "./referrer-notifications.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
 
 const MAX_SIGNUPS_PER_WINDOW = 5;
@@ -37,5 +38,6 @@ export async function submitReferrerRegistrationAction(input: ReferrerRegistrati
   await getDb().insert(referrers).values({ id, organizationId, code, firstName, lastName, email, phone, status: "active" });
 
   const trackPath = await mintTrackerLinkAction("referrer", { referrerId: id });
+  notifyReferrer("referrer_welcome", { id, organizationId, firstName, lastName, email, phone, code }).catch(() => {});
   return { code, firstName, trackPath };
 }

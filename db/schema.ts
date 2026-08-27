@@ -98,13 +98,63 @@ export const emailEvents = pgTable("email_events", {
   organizationId: text("organization_id").notNull().references(() => organizations.id),
   referralId: text("referral_id").references(() => referrals.id),
   referrerId: text("referrer_id").references(() => referrers.id),
+  // Which campaign_email_templates row (if any) rendered this send — null means
+  // the legacy hardcoded template (app/lib/email-templates.ts) was used because
+  // the campaign has no active custom template. Required for the spec's audit ask.
+  templateId: text("template_id").references(() => campaignEmailTemplates.id),
   templateKey: text("template_key").notNull(),
   recipient: text("recipient").notNull(),
   providerMessageId: text("provider_message_id"),
   status: text("status").notNull().default("queued"),
+  errorMessage: text("error_message"),
   state: text("state"),
   ...timestamps,
 });
+
+export const smsEvents = pgTable("sms_events", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organizations.id),
+  referralId: text("referral_id").references(() => referrals.id),
+  referrerId: text("referrer_id").references(() => referrers.id),
+  templateId: text("template_id").references(() => campaignSmsTemplates.id),
+  templateKey: text("template_key").notNull(),
+  recipient: text("recipient").notNull(),
+  providerMessageId: text("provider_message_id"),
+  status: text("status").notNull().default("queued"),
+  errorMessage: text("error_message"),
+  ...timestamps,
+});
+
+// One row per draft/active email variant a campaign could send to referrers.
+// At most one row per campaign may have is_active = true, enforced by the
+// partial unique index below (not just app-level checks).
+export const campaignEmailTemplates = pgTable("campaign_email_templates", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  bodyHtml: text("body_html").notNull(),
+  bodyText: text("body_text"),
+  isActive: boolean("is_active").notNull().default(false),
+  createdBy: text("created_by"),
+  updatedBy: text("updated_by"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("campaign_email_templates_active_idx").on(table.campaignId).where(sql`${table.isActive} = true`),
+]);
+
+export const campaignSmsTemplates = pgTable("campaign_sms_templates", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id),
+  name: text("name").notNull(),
+  body: text("body").notNull(),
+  isActive: boolean("is_active").notNull().default(false),
+  createdBy: text("created_by"),
+  updatedBy: text("updated_by"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("campaign_sms_templates_active_idx").on(table.campaignId).where(sql`${table.isActive} = true`),
+]);
 
 export const webhookEvents = pgTable("webhook_events", {
   idempotencyKey: text("idempotency_key").primaryKey(),

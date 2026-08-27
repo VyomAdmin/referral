@@ -10,6 +10,7 @@ import { logAuditEvent } from "./audit";
 import { getAdminReferrals } from "./admin-queries.ts";
 import { reconcileReferralFromHubSpot, syncReferralToHubSpot } from "./hubspot-sync.ts";
 import { isValidEmail, isValidPhone } from "./referral-rules.ts";
+import { notifyReferrerOfReferralStatus } from "./referrer-notifications.ts";
 import { CRM_ROLES, REWARD_ROLES } from "./roles.ts";
 
 export type MarkReferralPaidResult = { ok: true } | { ok: false; error: string };
@@ -23,7 +24,7 @@ export async function markReferralPaidAction(referralId: string): Promise<MarkRe
   const organizationId = session.user.organizationId;
   const db = getDb();
   const [referral] = await db
-    .select({ publicStatus: referrals.publicStatus, installationCompletedAt: referrals.installationCompletedAt })
+    .select({ id: referrals.id, organizationId: referrals.organizationId, referrerId: referrals.referrerId, campaignId: referrals.campaignId, state: referrals.state, publicStatus: referrals.publicStatus, installationCompletedAt: referrals.installationCompletedAt })
     .from(referrals)
     .where(and(eq(referrals.id, referralId), eq(referrals.organizationId, organizationId)))
     .limit(1);
@@ -47,6 +48,8 @@ export async function markReferralPaidAction(referralId: string): Promise<MarkRe
     targetId: referralId,
     organizationId,
   });
+
+  notifyReferrerOfReferralStatus(referral, "paid").catch(() => {});
 
   return { ok: true };
 }

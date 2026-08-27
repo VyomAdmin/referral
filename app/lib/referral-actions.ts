@@ -7,7 +7,9 @@ import { getDefaultOrganizationId } from "./organization.ts";
 import { getOrCreateCampaignId } from "./campaign-directory.ts";
 import { syncReferralToHubSpot } from "./hubspot-sync.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
-import { isValidEmail, isValidPhone } from "./referral-rules.ts";
+import { campaignForState, isValidEmail, isValidPhone } from "./referral-rules.ts";
+import type { StateCampaign } from "./referral-rules.ts";
+import { notifyReferrer } from "./referrer-notifications.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
 
 const MAX_SUBMISSIONS_PER_WINDOW = 5;
@@ -88,6 +90,9 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
   // Failures are recorded on the referral row (syncStatus/hubspotSyncError) for
   // the reconciliation job to retry later.
   syncReferralToHubSpot(id).catch(() => {});
+
+  const campaign = campaignForState(input.state as StateCampaign["state"]);
+  notifyReferrer("referral_received", referrer, { campaignId, campaign, referralId: id }).catch(() => {});
 
   return { referralId: id, trackPath };
 }
