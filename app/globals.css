@@ -193,14 +193,14 @@ a { color: inherit; }
 .status-pill-soft { background: var(--cyan-100); color: var(--blue-700); }
 
 .signup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.signup-grid label { display: grid; gap: 7px; color: var(--ink); font-size: 12px; font-weight: 750; }
+.signup-grid label { display: grid; gap: 7px; min-width: 0; color: var(--ink); font-size: 12px; font-weight: 750; }
 .signup-grid input {
-  width: 100%; height: 47px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line);
+  width: 100%; min-width: 0; max-width: 100%; height: 47px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line);
   color: var(--ink); background: var(--surface-soft); outline: none;
 }
 .signup-grid input:focus, .signup-grid select:focus { border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(0, 86, 140, .13); }
 .signup-grid select {
-  width: 100%; height: 47px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line);
+  width: 100%; min-width: 0; max-width: 100%; height: 47px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line);
   color: var(--ink); background: var(--surface-soft); outline: none;
 }
 .field-wide { grid-column: 1 / -1; }
@@ -276,8 +276,8 @@ a { color: inherit; }
 .zip-form, .customer-form, .unsupported-state { display: flex; flex-direction: column; gap: 20px; }
 .zip-form h2, .customer-form h2, .unsupported-state h2 { margin: 5px 0 0; font-size: 29px; letter-spacing: -1.1px; }
 .zip-form > p, .unsupported-state p { margin: -8px 0 2px; color: var(--muted); line-height: 1.55; }
-.zip-form label, .customer-form label { display: grid; gap: 7px; color: var(--ink); font-size: 12px; font-weight: 750; }
-.zip-form input, .customer-form input, .customer-form select { height: 49px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-soft); color: var(--ink); outline: none; }
+.zip-form label, .customer-form label { display: grid; gap: 7px; min-width: 0; color: var(--ink); font-size: 12px; font-weight: 750; }
+.zip-form input, .customer-form input, .customer-form select { width: 100%; min-width: 0; max-width: 100%; height: 49px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-soft); color: var(--ink); outline: none; }
 .zip-form input:focus, .customer-form input:focus, .customer-form select:focus { border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(0, 86, 140,.13); }
 .zip-form > small { color: var(--muted-2); }
 .state-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 15px; background: var(--cyan-100); color: var(--blue-700); font-size: 25px; }
