@@ -5,7 +5,7 @@ import { emailTemplate } from "./email-templates.ts";
 import type { EmailEvent, EmailTemplate } from "./email-templates.ts";
 import { smsTemplate } from "./sms-templates.ts";
 import { sendEmail } from "./email-sender.ts";
-import { sendSms } from "./sms-sender.ts";
+import { sendSms, twilioFromNumberForState } from "./sms-sender.ts";
 import { renderTemplate } from "./personalization.ts";
 import type { PersonalizationContext } from "./personalization.ts";
 import { getActiveCampaignEmailTemplate, getActiveCampaignSmsTemplate } from "./campaign-templates.ts";
@@ -100,7 +100,7 @@ async function sendReferrerSms(event: EmailEvent, referrer: NotifiableReferrer, 
     body = smsTemplate(event, referrer.firstName, campaign);
   }
 
-  const result = await sendSms({ to: referrer.phone, body });
+  const result = await sendSms({ to: referrer.phone, body, from: twilioFromNumberForState(campaign.state) });
   await getDb().insert(smsEvents).values({
     id: crypto.randomUUID(),
     organizationId: referrer.organizationId,

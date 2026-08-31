@@ -1,16 +1,20 @@
 import assert from "node:assert/strict";
 import test, { afterEach, mock } from "node:test";
-import { sendSms } from "../app/lib/sms-sender.ts";
+import { sendSms, twilioFromNumberForState } from "../app/lib/sms-sender.ts";
 
 const ORIGINAL_SID = process.env.TWILIO_ACCOUNT_SID;
 const ORIGINAL_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const ORIGINAL_FROM = process.env.TWILIO_FROM_NUMBER;
+const ORIGINAL_FROM_AZ = process.env.TWILIO_FROM_NUMBER_AZ;
+const ORIGINAL_FROM_FL = process.env.TWILIO_FROM_NUMBER_FL;
 
 afterEach(() => {
   mock.reset();
   process.env.TWILIO_ACCOUNT_SID = ORIGINAL_SID;
   process.env.TWILIO_AUTH_TOKEN = ORIGINAL_TOKEN;
   process.env.TWILIO_FROM_NUMBER = ORIGINAL_FROM;
+  process.env.TWILIO_FROM_NUMBER_AZ = ORIGINAL_FROM_AZ;
+  process.env.TWILIO_FROM_NUMBER_FL = ORIGINAL_FROM_FL;
 });
 
 test("sendSms no-ops when Twilio credentials aren't configured", async () => {
@@ -61,4 +65,27 @@ test("sendSms posts To/From/Body as form-encoded with basic auth", async () => {
   assert.equal(params.get("To"), "+16025550123");
   assert.equal(params.get("From"), "+15550001111");
   assert.equal(params.get("Body"), "Your link is ready");
+});
+
+test("sendSms uses the explicit from override instead of TWILIO_FROM_NUMBER", async () => {
+  process.env.TWILIO_ACCOUNT_SID = "AC_test";
+  process.env.TWILIO_AUTH_TOKEN = "token";
+  process.env.TWILIO_FROM_NUMBER = "+15550001111";
+  let capturedBody = "";
+  mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    capturedBody = init.body as string;
+    return new Response(JSON.stringify({ sid: "SM123" }), { status: 201 });
+  });
+  await sendSms({ to: "+16025550123", body: "Hi", from: "+17867861238" });
+  assert.equal(new URLSearchParams(capturedBody).get("From"), "+17867861238");
+});
+
+test("twilioFromNumberForState picks the per-state number, falling back to TWILIO_FROM_NUMBER", () => {
+  process.env.TWILIO_FROM_NUMBER = "+15550001111";
+  process.env.TWILIO_FROM_NUMBER_AZ = "+16233236445";
+  process.env.TWILIO_FROM_NUMBER_FL = "+17867861238";
+  assert.equal(twilioFromNumberForState("AZ"), "+16233236445");
+  assert.equal(twilioFromNumberForState("FL"), "+17867861238");
+  delete process.env.TWILIO_FROM_NUMBER_AZ;
+  assert.equal(twilioFromNumberForState("AZ"), "+15550001111");
 });

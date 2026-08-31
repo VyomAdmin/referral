@@ -19,6 +19,10 @@ run:
       value: "691581097"
     - name: HUBSPOT_STAGE_NEW_ID
       value: "1012021141"
+    - name: TWILIO_FROM_NUMBER_AZ
+      value: "+16233236445"
+    - name: TWILIO_FROM_NUMBER_FL
+      value: "+17867861238"
   secrets:
     - name: DATABASE_URL
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/DATABASE_URL-xwlrMa
@@ -28,3 +32,7 @@ run:
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/HUBSPOT_PRIVATE_APP_TOKEN-XBo9Kw
     - name: HUBSPOT_CLIENT_SECRET
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/HUBSPOT_CLIENT_SECRET-whGvtf
+    - name: TWILIO_ACCOUNT_SID
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/TWILIO_ACCOUNT_SID-EbTkz2
+    - name: TWILIO_AUTH_TOKEN
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/TWILIO_AUTH_TOKEN-9UByE4

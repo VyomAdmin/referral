@@ -1,8 +1,21 @@
-export type SendSmsInput = { to: string; body: string };
+export type SendSmsInput = { to: string; body: string; from?: string };
 export type SendResult = { ok: true; providerMessageId: string } | { ok: false; error: string };
 
 const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
 const REQUEST_TIMEOUT_MS = 8000;
+
+// NuVision has one Twilio number per state (separate 10DLC campaigns) rather
+// than a single shared sender. TWILIO_FROM_NUMBER is the fallback for states
+// with no dedicated number (or campaigns/tests that don't pass one).
+const STATE_FROM_NUMBER_ENV: Record<string, string> = {
+  AZ: "TWILIO_FROM_NUMBER_AZ",
+  FL: "TWILIO_FROM_NUMBER_FL",
+};
+
+export function twilioFromNumberForState(state: string): string | undefined {
+  const envVar = STATE_FROM_NUMBER_ENV[state];
+  return (envVar && process.env[envVar]) || process.env.TWILIO_FROM_NUMBER;
+}
 
 // Plain REST call instead of the Twilio SDK — the Messages API is one POST
 // endpoint, not worth a dependency. TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER
@@ -11,7 +24,7 @@ const REQUEST_TIMEOUT_MS = 8000;
 export async function sendSms(input: SendSmsInput): Promise<SendResult> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+  const fromNumber = input.from || process.env.TWILIO_FROM_NUMBER;
   if (!accountSid || !authToken || !fromNumber) {
     return { ok: false, error: "Twilio SMS sending is not configured" };
   }

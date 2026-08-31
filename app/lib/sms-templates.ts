@@ -15,3 +15,13 @@ export function smsTemplate(event: EmailEvent, recipientName: string, campaign: 
   };
   return templates[event];
 }
+
+// Sent once, right after a referred customer (the referee) submits the form —
+// confirms receipt and sets expectations, doesn't try to mirror every
+// referrer lifecycle event. referrerName lets the referee recognize why
+// they're getting a text from a number they don't know.
+export function refereeConfirmationSms(customerFirstName: string, referrerName: string, campaign: StateCampaign): string {
+  const firstName = customerFirstName.trim().split(/\s+/)[0] || "there";
+  const offer = campaign.customerOffer ? ` ${campaign.customerOffer}` : "";
+  return `Hi ${firstName}, thanks for your interest in NuVision Auto Glass through ${referrerName}'s referral!${offer} We'll reach out shortly to schedule your service. Reply STOP to opt out.`;
+}

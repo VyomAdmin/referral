@@ -663,7 +663,7 @@ function IntegrationsView({ status }: { status: { hubspotConfigured: boolean; gm
         </article>
         <article className="admin-card integration-card">
           <div className="integration-logo email-logo">✉</div>
-          <div><span className={status.twilioConfigured ? "active-dot" : "paused-dot"}>{status.twilioConfigured ? "Live" : "Not configured"}</span><h2>Referrer SMS (Twilio)</h2><p>Sends the active campaign SMS template — or the built-in default — to referrers via the Twilio Messages API.</p></div>
+          <div><span className={status.twilioConfigured ? "active-dot" : "paused-dot"}>{status.twilioConfigured ? "Live" : "Not configured"}</span><h2>SMS (Twilio)</h2><p>Sends the active campaign SMS template — or the built-in default — to referrers via the Twilio Messages API, plus a confirmation text to the referred customer on submission.</p></div>
           <dl><div><dt>Live sending</dt><dd>{status.twilioConfigured ? "Enabled" : "Disabled"}</dd></div><div><dt>Provider</dt><dd>Twilio</dd></div></dl>
         </article>
       </div>

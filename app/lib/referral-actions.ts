@@ -10,6 +10,7 @@ import { checkRateLimit, getClientIp } from "./rate-limit.ts";
 import { campaignForState, isValidEmail, isValidPhone } from "./referral-rules.ts";
 import type { StateCampaign } from "./referral-rules.ts";
 import { notifyReferrer } from "./referrer-notifications.ts";
+import { notifyReferee } from "./referee-notifications.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
 
 const MAX_SUBMISSIONS_PER_WINDOW = 5;
@@ -93,6 +94,11 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
 
   const campaign = campaignForState(input.state as StateCampaign["state"]);
   notifyReferrer("referral_received", referrer, { campaignId, campaign, referralId: id }).catch(() => {});
+  notifyReferee(
+    { id, organizationId, firstName, phone },
+    `${referrer.firstName} ${referrer.lastName}`.trim(),
+    campaign,
+  ).catch(() => {});
 
   return { referralId: id, trackPath };
 }

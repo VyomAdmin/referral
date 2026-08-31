@@ -61,7 +61,11 @@ export default async function AdminPage() {
   const integrationsStatus = {
     hubspotConfigured: Boolean(process.env.HUBSPOT_PIPELINE_ID && process.env.HUBSPOT_PRIVATE_APP_TOKEN),
     gmailConfigured: Boolean(process.env.GMAIL_AUTH_EMAIL && process.env.GMAIL_APP_PASSWORD),
-    twilioConfigured: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER),
+    twilioConfigured: Boolean(
+      process.env.TWILIO_ACCOUNT_SID &&
+        process.env.TWILIO_AUTH_TOKEN &&
+        (process.env.TWILIO_FROM_NUMBER || process.env.TWILIO_FROM_NUMBER_AZ || process.env.TWILIO_FROM_NUMBER_FL),
+    ),
   };
 
   async function signOutAction() {
