@@ -36,3 +36,7 @@ run:
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/TWILIO_ACCOUNT_SID-EbTkz2
     - name: TWILIO_AUTH_TOKEN
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/TWILIO_AUTH_TOKEN-9UByE4
+    - name: GMAIL_AUTH_EMAIL
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/GMAIL_AUTH_EMAIL-AQgnUR
+    - name: GMAIL_APP_PASSWORD
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/GMAIL_APP_PASSWORD-9FxCv0
