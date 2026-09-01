@@ -1,6 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { campaigns, referrals, referrers } from "../../db/schema.ts";
+import { createTrackerToken } from "./tracker-tokens.ts";
 
 export async function getReferrerTrackerData(referrerId: string) {
   const db = getDb();
@@ -30,10 +31,14 @@ export async function getReferrerTrackerData(referrerId: string) {
 }
 
 export async function getCustomerTrackerData(referralId: string) {
-  const [row] = await getDb()
+  const db = getDb();
+  const [row] = await db
     .select({
       id: referrals.id,
+      organizationId: referrals.organizationId,
       customerFirstName: referrals.customerFirstName,
+      customerEmail: referrals.customerEmail,
+      customerPhone: referrals.customerPhone,
       zip: referrals.zip,
       state: referrals.state,
       status: referrals.publicStatus,
@@ -50,5 +55,35 @@ export async function getCustomerTrackerData(referralId: string) {
     .where(eq(referrals.id, referralId))
     .limit(1);
 
-  return row ?? null;
+  if (!row) return null;
+
+  // A customer can be referred more than once (different referrers, or the
+  // same one twice) — each submission gets its own tracker token/page, so
+  // without this a returning visitor only ever sees the one order their
+  // current link points at. Matched by email+phone, same as the /track
+  // lookup form, since that's the only identity a referee has (no login).
+  const siblingRows = await db
+    .select({ id: referrals.id, state: referrals.state, zip: referrals.zip, status: referrals.publicStatus, createdAt: referrals.createdAt })
+    .from(referrals)
+    .where(
+      and(
+        eq(referrals.organizationId, row.organizationId),
+        eq(referrals.customerEmail, row.customerEmail),
+        eq(referrals.customerPhone, row.customerPhone),
+        ne(referrals.id, row.id),
+      ),
+    )
+    .orderBy(desc(referrals.createdAt));
+
+  const otherOrders = await Promise.all(
+    siblingRows.map(async (sibling) => ({
+      trackPath: `/track/customer/${await createTrackerToken({ kind: "customer", referralId: sibling.id })}`,
+      state: sibling.state,
+      zip: sibling.zip,
+      status: sibling.status,
+      createdAt: sibling.createdAt,
+    })),
+  );
+
+  return { ...row, otherOrders };
 }

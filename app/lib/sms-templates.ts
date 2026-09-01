@@ -19,9 +19,11 @@ export function smsTemplate(event: EmailEvent, recipientName: string, campaign: 
 // Sent once, right after a referred customer (the referee) submits the form —
 // confirms receipt and sets expectations, doesn't try to mirror every
 // referrer lifecycle event. referrerName lets the referee recognize why
-// they're getting a text from a number they don't know.
-export function refereeConfirmationSms(customerFirstName: string, referrerName: string, campaign: StateCampaign): string {
+// they're getting a text from a number they don't know. trackUrl is the
+// referee's only durable way back to their status page (there's no login),
+// so it belongs before the opt-out line, not tacked on after it.
+export function refereeConfirmationSms(customerFirstName: string, referrerName: string, campaign: StateCampaign, trackUrl: string): string {
   const firstName = customerFirstName.trim().split(/\s+/)[0] || "there";
   const offer = campaign.customerOffer ? ` ${campaign.customerOffer}` : "";
-  return `Hi ${firstName}, thanks for your interest in NuVision Auto Glass through ${referrerName}'s referral!${offer} We'll reach out shortly to schedule your service. Reply STOP to opt out.`;
+  return `Hi ${firstName}, thanks for your interest in NuVision Auto Glass through ${referrerName}'s referral!${offer} We'll reach out shortly to schedule your service. Track it here: ${trackUrl} Reply STOP to opt out.`;
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { InvalidTracker, publicStages, StatusTimeline, TrackerHeader } from "../../../components/tracker";
 import { TrackerVerifyGate } from "../../../components/tracker-verify-gate";
 import { verifyTrackerToken } from "../../../lib/tracker-tokens";
@@ -50,6 +51,23 @@ export default async function CustomerTrackerPage({ params }: { params: Promise<
           <div className="support-note"><strong>Need help?</strong><span>Call NuVision at (855) 213-0100</span></div>
         </aside>
       </section>
+      {referral.otherOrders.length > 0 ? (
+        <section className="tracker-content page-width">
+          <div className="tracker-list-card">
+            <div className="card-heading"><div><span className="eyebrow">Same email and phone</span><h2>Your other requests</h2></div><span className="status-pill status-pill-soft">{referral.otherOrders.length} more</span></div>
+            <div className="referral-list">
+              {referral.otherOrders.map((order) => (
+                <Link key={order.trackPath} href={order.trackPath} className="referral-list-link">
+                  <article>
+                    <div className="referral-person"><strong>{order.state} • {order.zip}</strong><small>Submitted {new Date(order.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</small></div>
+                    <span className={`referral-status referral-${order.status}`}>{publicStages.find((stage) => stage.key === order.status)?.label ?? order.status}</span>
+                  </article>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import Link from "next/link";
 import { HeaderBrand } from "../../components/brand";
 import { ReferralJourney } from "../../components/referral-journey";
 import { getDb } from "../../../db/index.ts";
@@ -32,7 +33,10 @@ export default async function ReferredPage({ params }: { params: Promise<{ code:
     <main className="referral-page">
       <header className="flow-header page-width">
         <HeaderBrand />
-        <span className="secure-note">Secure referral • {code}</span>
+        <div className="flow-header-actions">
+          <Link href="/track">Already submitted? Track it</Link>
+          <span className="secure-note">Secure referral • {code}</span>
+        </div>
       </header>
       <ReferralJourney code={code} referrerFirstName={referrerFirstName} />
     </main>

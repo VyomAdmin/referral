@@ -95,7 +95,8 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
   const campaign = campaignForState(input.state as StateCampaign["state"]);
   notifyReferrer("referral_received", referrer, { campaignId, campaign, referralId: id }).catch(() => {});
   notifyReferee(
-    { id, organizationId, firstName, phone },
+    { id, organizationId, firstName, email, phone },
+    trackPath,
     `${referrer.firstName} ${referrer.lastName}`.trim(),
     campaign,
   ).catch(() => {});
