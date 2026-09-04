@@ -67,7 +67,6 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
     const outcome = await submitCustomerReferralAction({
       referralCode: code,
       zip,
-      state: campaign.state,
       firstName,
       lastName: rest.join(" ") || firstName,
       email: lead.email,

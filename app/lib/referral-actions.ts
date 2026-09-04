@@ -7,8 +7,7 @@ import { getDefaultOrganizationId } from "./organization.ts";
 import { getOrCreateCampaignId } from "./campaign-directory.ts";
 import { syncReferralToHubSpot } from "./hubspot-sync.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
-import { campaignForState, isValidEmail, isValidPhone } from "./referral-rules.ts";
-import type { StateCampaign } from "./referral-rules.ts";
+import { campaignForZip, isValidEmail, isValidPhone } from "./referral-rules.ts";
 import { notifyReferrer } from "./referrer-notifications.ts";
 import { notifyReferee } from "./referee-notifications.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
@@ -19,7 +18,6 @@ const SUBMISSION_WINDOW_MINUTES = 10;
 export type CustomerReferralInput = {
   referralCode: string;
   zip: string;
-  state: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -46,6 +44,20 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
     return { error: "Please agree to the program terms to continue." };
   }
 
+  // The client already gates the form on campaignForZip(zip), but that's a UX
+  // convenience, not a security boundary — this server action is reachable
+  // directly. Recompute the state from the ZIP here instead of trusting a
+  // client-supplied state field, so a malformed or mismatched ZIP/state pair
+  // can never record a referral against the wrong campaign (wrong offer,
+  // wrong payout, wrong service routing).
+  if (!/^\d{5}$/.test(input.zip)) {
+    return { error: "Enter a valid five-digit ZIP code." };
+  }
+  const campaign = campaignForZip(input.zip);
+  if (!campaign) {
+    return { error: "We don't yet support service in this area." };
+  }
+
   const clientIp = await getClientIp();
   const withinLimit = await checkRateLimit(`referral-submit:${clientIp}`, MAX_SUBMISSIONS_PER_WINDOW, SUBMISSION_WINDOW_MINUTES);
   if (!withinLimit) {
@@ -62,7 +74,7 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
     .limit(1);
   if (!referrer) return { error: "This referral link is no longer valid." };
 
-  const campaignId = await getOrCreateCampaignId(organizationId, input.state);
+  const campaignId = await getOrCreateCampaignId(organizationId, campaign.state);
   if (!campaignId) return { error: "We don't yet support service in this area." };
 
   const id = crypto.randomUUID();
@@ -76,7 +88,7 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
     customerEmail: email,
     customerPhone: phone,
     zip: input.zip,
-    state: input.state,
+    state: campaign.state,
     vehicleMake: input.vehicleMake || null,
     vehicleYear: input.vehicleYear || null,
     vehicleModel: input.vehicleModel || null,
@@ -92,7 +104,6 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
   // the reconciliation job to retry later.
   syncReferralToHubSpot(id).catch(() => {});
 
-  const campaign = campaignForState(input.state as StateCampaign["state"]);
   notifyReferrer("referral_received", referrer, { campaignId, campaign, referralId: id }).catch(() => {});
   notifyReferee(
     { id, organizationId, firstName, email, phone },
