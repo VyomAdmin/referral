@@ -259,7 +259,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
               onDeleteSms={deleteSmsTemplate}
             />
           ) : null}
-          {section === "rewards" ? <RewardsView referrals={referrals} onPay={markPaid} /> : null}
+          {section === "rewards" ? <RewardsView referrals={referrals} onPay={markPaid} onSelect={setSelected} /> : null}
           {section === "emails" ? <EmailsView emailEvents={emailEvents} /> : null}
           {section === "analytics" ? <AnalyticsView referrals={referrals} /> : null}
           {section === "integrations" ? <IntegrationsView status={integrationsStatus} /> : null}
@@ -563,7 +563,7 @@ function SmsTemplateDrawer({ campaignId, template, onClose, onSave }: {
 
 type RewardStatusFilter = "All statuses" | "scheduled" | "installed" | "paid";
 
-function RewardsView({ referrals, onPay }: { referrals: AdminReferral[]; onPay: (referral: AdminReferral) => void }) {
+function RewardsView({ referrals, onPay, onSelect }: { referrals: AdminReferral[]; onPay: (referral: AdminReferral) => void; onSelect: (referral: AdminReferral) => void }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RewardStatusFilter>("All statuses");
   const [page, setPage] = useState(1);
@@ -587,7 +587,7 @@ function RewardsView({ referrals, onPay }: { referrals: AdminReferral[]; onPay: 
   }
   const pageQueue = useMemo(() => filteredQueue.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredQueue, page]);
 
-  return <><PageTitle eyebrow="FINANCE" title="Reward queue" description="Payments unlock only after an installation-completed signal." /><div className="reward-summary"><article><span>Eligible now</span><strong>${eligibleNow}</strong></article><article><span>Paid all time</span><strong>${paidAllTime}</strong></article><article><span>Blocked / pending install</span><strong>${blocked}</strong></article></div><div className="table-toolbar"><label className="admin-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, phone, code, HubSpot ID…" /></label><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as RewardStatusFilter)}><option value="All statuses">All statuses</option><option value="scheduled">{statusLabel("scheduled")}</option><option value="installed">{statusLabel("installed")}</option><option value="paid">{statusLabel("paid")}</option></select></div><div className="admin-card reward-table"><ReferralTable referrals={pageQueue} />{filteredQueue.length === 0 ? <div className="empty-table"><strong>No matching referrals</strong><span>Try a different name, phone, code, or filter.</span></div> : <Pagination page={page} totalItems={filteredQueue.length} pageSize={PAGE_SIZE} onPageChange={setPage} />}<div className="reward-actions">{pageQueue.filter((referral) => ["scheduled", "installed"].includes(referral.status)).map((referral) => <div key={referral.id}><span><strong>{referral.id}</strong> • {referral.customer}</span><button disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Waiting for installation"}</button></div>)}</div></div></>;
+  return <><PageTitle eyebrow="FINANCE" title="Reward queue" description="Payments unlock only after an installation-completed signal." /><div className="reward-summary"><article><span>Eligible now</span><strong>${eligibleNow}</strong></article><article><span>Paid all time</span><strong>${paidAllTime}</strong></article><article><span>Blocked / pending install</span><strong>${blocked}</strong></article></div><div className="table-toolbar"><label className="admin-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, phone, code, HubSpot ID…" /></label><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as RewardStatusFilter)}><option value="All statuses">All statuses</option><option value="scheduled">{statusLabel("scheduled")}</option><option value="installed">{statusLabel("installed")}</option><option value="paid">{statusLabel("paid")}</option></select></div><div className="admin-card reward-table"><ReferralTable referrals={pageQueue} onSelect={onSelect} />{filteredQueue.length === 0 ? <div className="empty-table"><strong>No matching referrals</strong><span>Try a different name, phone, code, or filter.</span></div> : <Pagination page={page} totalItems={filteredQueue.length} pageSize={PAGE_SIZE} onPageChange={setPage} />}<div className="reward-actions">{pageQueue.filter((referral) => ["scheduled", "installed"].includes(referral.status)).map((referral) => <div key={referral.id}><span><strong>{referral.id}</strong> • {referral.customer}</span><button disabled={!canMarkRewardPaid(referral)} onClick={() => onPay(referral)} type="button">{canMarkRewardPaid(referral) ? `Mark $${referral.rewardAmount} paid` : "Waiting for installation"}</button></div>)}</div></div></>;
 }
 
 function EmailsView({ emailEvents }: { emailEvents: AdminEmailEvent[] }) {
