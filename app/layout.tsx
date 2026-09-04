@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Poppins } from "next/font/google";
 import { headers } from "next/headers";
 import { ThemeToggle, THEME_INIT_SCRIPT } from "./components/theme-toggle";
+import { SalesIqWidget } from "./components/salesiq-widget";
 import "./globals.css";
 
 // Matches the brand font used on nuvisionautoglass.com (--font-primary: "Poppins", ...).
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {children}
         <ThemeToggle />
+        <SalesIqWidget />
       </body>
     </html>
   );
