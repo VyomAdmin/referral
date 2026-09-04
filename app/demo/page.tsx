@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PublicHeader, BrandWordmark } from "../components/brand";
+import { PublicHeader, BrandWordmark, GENERIC_REFERRAL_CODE } from "../components/brand";
 
 export const metadata = {
   title: "Demo Tour | NuVision Referrals",
@@ -14,7 +14,7 @@ const flowSteps = [
     hint: "Start here",
   },
   {
-    href: "/r/NV-NUVISION",
+    href: `/r/${GENERIC_REFERRAL_CODE}`,
     title: "2. Referred-customer journey",
     description: "Open a shared link, enter a ZIP, and see state-specific offer copy and the quote form.",
     hint: "Try ZIP 85001 (AZ, $50 offer) or 33101 (FL, no offer)",
@@ -50,7 +50,7 @@ const siteMap = [
     group: "Public referral journey",
     items: [
       { href: "/", label: "Referrer registration" },
-      { href: "/r/NV-NUVISION", label: "Referred-customer ZIP gate + quote" },
+      { href: `/r/${GENERIC_REFERRAL_CODE}`, label: "Referred-customer ZIP gate + quote" },
     ],
   },
   {

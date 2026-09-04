@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BrandWordmark, HeaderBrand, PublicHeader } from "./components/brand";
+import { BrandWordmark, GENERIC_REFERRAL_CODE, HeaderBrand, PublicHeader } from "./components/brand";
 import { ReferrerRegistration } from "./components/referrer-registration";
 
 export const metadata = {
@@ -31,7 +31,7 @@ export default function Home() {
             <a className="button button-primary" href="#join">
               Get my referral link
             </a>
-            <Link className="button button-secondary" href="/r/NV-NUVISION">
+            <Link className="button button-secondary" href={`/r/${GENERIC_REFERRAL_CODE}`}>
               I was referred
             </Link>
           </div>

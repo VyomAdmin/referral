@@ -28,6 +28,10 @@ test("server-renders the ZIP-gated referred-customer journey", async () => {
   assert.match(html, /Where do you need service/);
   assert.match(html, /Enter your ZIP/);
   assert.match(html, /Your referral is already attached/);
+  // NV-NUVISION is the generic "I was referred" entry point linked from the
+  // nav, homepage, and demo tour — it's never a real referrer row, so the
+  // referral-code validation added for audit item B-01 must always exempt it.
+  assert.doesNotMatch(html, /isn't valid/);
 });
 
 test("redirects unauthenticated visitors away from the admin dashboard", async () => {

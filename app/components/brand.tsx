@@ -2,6 +2,11 @@ import Link from "next/link";
 
 export const NUVISION_HOME_URL = "https://www.nuvisionautoglass.com/";
 
+// The generic "I was referred" entry point (nav, homepage, demo links) — a
+// code-less way into the referral flow, intentionally never a real referrer
+// row. Referral-code validation on /r/[code] must treat it as always valid.
+export const GENERIC_REFERRAL_CODE = "NV-NUVISION";
+
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <a className={`brand ${compact ? "brand-compact" : ""}`} href={NUVISION_HOME_URL} aria-label="NuVision Auto Glass home">
@@ -44,7 +49,7 @@ export function PublicHeader() {
         <HeaderBrand />
         <nav aria-label="Referral navigation">
           <a href="#join">Get my link</a>
-          <Link href="/r/NV-NUVISION">I was referred</Link>
+          <Link href={`/r/${GENERIC_REFERRAL_CODE}`}>I was referred</Link>
           <Link href="/demo">Demo tour</Link>
           <Link className="header-track-link" href="/track">Track referrals</Link>
         </nav>

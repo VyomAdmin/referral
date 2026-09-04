@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import Link from "next/link";
-import { HeaderBrand, NUVISION_HOME_URL } from "../../components/brand";
+import { GENERIC_REFERRAL_CODE, HeaderBrand, NUVISION_HOME_URL } from "../../components/brand";
 import { ReferralJourney } from "../../components/referral-journey";
 import { getDb } from "../../../db/index.ts";
 import { referrers } from "../../../db/schema.ts";
@@ -20,6 +20,7 @@ type ReferrerLookup = { status: "valid"; firstName: string } | { status: "invali
 // "unknown" and the form still renders (with the generic "your friend" copy),
 // same as before this distinction existed.
 async function lookupReferrer(code: string): Promise<ReferrerLookup> {
+  if (code === GENERIC_REFERRAL_CODE) return { status: "unknown" };
   try {
     const organizationId = await getDefaultOrganizationId();
     const db = getDb();
