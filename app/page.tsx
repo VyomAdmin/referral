@@ -92,7 +92,6 @@ export default function Home() {
           <div>
             <a href="https://www.nuvisionautoglass.com/terms-conditions/">Program terms</a>
             <a href="https://www.nuvisionautoglass.com/privacy-policy/">Privacy</a>
-            <Link href="/admin">Team access</Link>
           </div>
         </div>
       </footer>

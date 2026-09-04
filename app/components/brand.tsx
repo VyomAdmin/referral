@@ -50,7 +50,6 @@ export function PublicHeader() {
         <nav aria-label="Referral navigation">
           <a href="#join">Get my link</a>
           <Link href={`/r/${GENERIC_REFERRAL_CODE}`}>I was referred</Link>
-          <Link href="/demo">Demo tour</Link>
           <Link className="header-track-link" href="/track">Track referrals</Link>
         </nav>
       </div>
