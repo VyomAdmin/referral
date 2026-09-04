@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
-import { referrals } from "../../db/schema.ts";
+import { referrals, referrers } from "../../db/schema.ts";
 import { createContact, createDeal, findContactByEmailOrPhone, getDealProperties, getDealStageLabel, resolvePicklistValue } from "./hubspot-client.ts";
 import { INSTALLATION_COMPLETED_PROPERTY, INSTALLATION_COMPLETED_VALUE, mapHubSpotDealToPublicStatus } from "./hubspot.ts";
 import type { HubSpotWebhookEvent } from "./hubspot.ts";
@@ -8,7 +8,8 @@ import { notifyOps } from "./ops-alerts.ts";
 import { stateName } from "./referral-rules.ts";
 import { notifyReferrerOfReferralStatus } from "./referrer-notifications.ts";
 
-const LEAD_SOURCE = "Referral";
+const LEAD_SOURCE = "In-House Referral";
+const SECONDARY_LEAD_SOURCE = "Marketing";
 
 // Resolves each candidate value against its HubSpot property (matching
 // picklists case-insensitively, passing free-text fields through as-is) and
@@ -40,6 +41,9 @@ export async function syncReferralToHubSpot(referralId: string) {
   const [referral] = await db.select().from(referrals).where(eq(referrals.id, referralId)).limit(1);
   if (!referral) return;
 
+  const [referrer] = await db.select({ code: referrers.code }).from(referrers).where(eq(referrers.id, referral.referrerId)).limit(1);
+  const referralCode = referrer?.code ?? "";
+
   if (!process.env.HUBSPOT_PIPELINE_ID || !process.env.HUBSPOT_STAGE_NEW_ID) {
     await db.update(referrals).set({ syncStatus: "skipped" }).where(eq(referrals.id, referralId));
     return;
@@ -55,6 +59,8 @@ export async function syncReferralToHubSpot(referralId: string) {
         email: referral.customerEmail,
         phone: referral.customerPhone,
         leadSource: LEAD_SOURCE,
+        secondaryLeadSource: SECONDARY_LEAD_SOURCE,
+        referralCode: referralCode,
       }));
 
     if (contactId !== referral.hubspotContactId) {
@@ -76,6 +82,8 @@ export async function syncReferralToHubSpot(referralId: string) {
       pipeline: process.env.HUBSPOT_PIPELINE_ID,
       dealstage: process.env.HUBSPOT_STAGE_NEW_ID,
       leadSource: LEAD_SOURCE,
+      secondaryLeadSource: SECONDARY_LEAD_SOURCE,
+      referralCode: referralCode,
       contactPhone: referral.customerPhone,
       extraProperties: dealFieldProperties,
       installNotes: installNotes || undefined,

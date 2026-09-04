@@ -13,7 +13,7 @@ import { isValidEmail, isValidPhone } from "./referral-rules.ts";
 import { notifyReferrerOfReferralStatus } from "./referrer-notifications.ts";
 import { CRM_ROLES, REWARD_ROLES } from "./roles.ts";
 
-export type MarkReferralPaidResult = { ok: true } | { ok: false; error: string };
+export type MarkReferralPaidResult = { ok: true; paidByName: string; paidAt: string } | { ok: false; error: string };
 
 export async function markReferralPaidAction(referralId: string): Promise<MarkReferralPaidResult> {
   const session = await auth();
@@ -36,9 +36,17 @@ export async function markReferralPaidAction(referralId: string): Promise<MarkRe
     return { ok: false, error: "Payment is blocked until installation completion is confirmed." };
   }
 
+  const paidByName = session.user.name ?? session.user.email ?? "Unknown user";
+  const paidAt = new Date();
+
   await db
     .update(referrals)
-    .set({ publicStatus: "paid" })
+    .set({
+      publicStatus: "paid",
+      paidByUserId: session.user.id ?? "unknown",
+      paidByName,
+      paidAt,
+    })
     .where(and(eq(referrals.id, referralId), eq(referrals.organizationId, organizationId)));
 
   await logAuditEvent({
@@ -51,7 +59,7 @@ export async function markReferralPaidAction(referralId: string): Promise<MarkRe
 
   notifyReferrerOfReferralStatus(referral, "paid").catch(() => {});
 
-  return { ok: true };
+  return { ok: true, paidByName, paidAt: paidAt.toISOString() };
 }
 
 export type RetryHubSpotSyncsResult = { ok: true; retried: number; referrals: AdminReferral[] } | { ok: false; error: string };

@@ -17,6 +17,8 @@ export type AdminReferral = {
   hubspotStage: string;
   submittedAt: string;
   installedAt: string | null;
+  paidByName: string | null;
+  paidAt: string | null;
   rewardAmount: number;
   syncStatus: "synced" | "pending" | "failed" | "skipped";
   syncError: string | null;

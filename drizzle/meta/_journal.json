@@ -57,6 +57,13 @@
       "when": 1787836279624,
       "tag": "0007_small_nomad",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788540029136,
+      "tag": "0008_brief_maria_hill",
+      "breakpoints": true
     }
   ]
 }

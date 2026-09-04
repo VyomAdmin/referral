@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CopyLinkButton } from "../../../components/copy-link-button";
-import { InvalidTracker, publicStages, StatusTimeline, TrackerHeader } from "../../../components/tracker";
+import { InvalidTracker, TrackerHeader } from "../../../components/tracker";
+import { ReferrerActivityPanel } from "../../../components/referrer-activity-panel";
 import { TrackerVerifyGate } from "../../../components/tracker-verify-gate";
 import { verifyTrackerToken } from "../../../lib/tracker-tokens";
 import { getReferrerTrackerData } from "../../../lib/tracker-data";
@@ -27,8 +28,6 @@ export default async function ReferrerTrackerPage({ params }: { params: Promise<
   if (!data) return <InvalidTracker />;
 
   const { referrer, referrals, totals } = data;
-  const latest = referrals[0];
-  const latestIndex = latest ? Math.max(publicStages.findIndex((stage) => stage.key === latest.status), 0) : 0;
 
   return (
     <main className="tracker-page">
@@ -53,26 +52,7 @@ export default async function ReferrerTrackerPage({ params }: { params: Promise<
           <article className="metric-highlight"><span>Rewards earned</span><strong>${(totals.rewardsEarnedCents / 100).toFixed(0)}</strong><small>Paid rewards only</small></article>
         </div>
 
-        <div className="tracker-grid">
-          <section className="tracker-list-card">
-            <div className="card-heading"><div><span className="eyebrow">Referral activity</span><h2>People you referred</h2></div><span className="status-pill status-pill-soft">{totals.total} total</span></div>
-            <div className="referral-list">
-              {referrals.length === 0 ? <p>Share your link to see referrals appear here.</p> : referrals.map((referral) => (
-                <article key={referral.id}>
-                  <div className="avatar-circle">{referral.customerFirstName.slice(0, 1)}</div>
-                  <div className="referral-person"><strong>{referral.customerFirstName} {referral.customerLastName.slice(0, 1)}.</strong><small>{referral.state} • {referral.zip}</small></div>
-                  <span className={`referral-status referral-${referral.status}`}>{publicStages.find((stage) => stage.key === referral.status)?.label ?? referral.status}</span>
-                </article>
-              ))}
-            </div>
-          </section>
-          <aside className="tracker-status-card">
-            <span className="eyebrow">Latest activity</span>
-            <h2>{latest ? `${latest.customerFirstName}'s progress` : "No activity yet"}</h2>
-            <p>Only privacy-safe status details are shown.</p>
-            <StatusTimeline activeIndex={latestIndex} />
-          </aside>
-        </div>
+        <ReferrerActivityPanel referrals={referrals} totalCount={totals.total} />
       </section>
     </main>
   );

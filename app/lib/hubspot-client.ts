@@ -40,7 +40,7 @@ export async function getDealProperties(dealId: string, propertyNames: string[])
   return result.properties ?? {};
 }
 
-export type HubSpotContactInput = { firstName: string; lastName: string; email: string; phone: string; leadSource: string };
+export type HubSpotContactInput = { firstName: string; lastName: string; email: string; phone: string; leadSource: string; secondaryLeadSource: string; referralCode: string };
 
 export async function findContactByEmailOrPhone(email: string, phone: string): Promise<string | null> {
   const result = await hubSpotFetch("/crm/v3/objects/contacts/search", {
@@ -77,6 +77,8 @@ export async function createContact(input: HubSpotContactInput): Promise<string>
           email: input.email,
           phone: input.phone,
           incoming_lead_source__c: input.leadSource,
+          lead_source__c: input.secondaryLeadSource,
+          referral_code__c: input.referralCode,
         },
       }),
     });
@@ -121,6 +123,8 @@ export type HubSpotDealInput = {
   pipeline: string;
   dealstage: string;
   leadSource: string;
+  secondaryLeadSource: string;
+  referralCode: string;
   contactPhone: string;
   // Already-resolved property values (see resolvePicklistValue) — e.g.
   // { install_state: "Arizona", veh_make__c: "Toyota" }.
@@ -138,6 +142,8 @@ export async function createDeal(input: HubSpotDealInput): Promise<{ id: string;
         pipeline: input.pipeline,
         dealstage: input.dealstage,
         incoming_lead_source__c: input.leadSource,
+        lead_source__c: input.secondaryLeadSource,
+        referral_code__c: input.referralCode,
         contact_phone_1__c: input.contactPhone,
         ...input.extraProperties,
         ...(input.installNotes ? { install_notes__c: input.installNotes } : {}),
