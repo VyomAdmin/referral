@@ -6,6 +6,7 @@ import { campaignForZip, isValidEmail, isValidPhone, StateCampaign } from "../li
 import { submitCustomerReferralAction } from "../lib/referral-actions";
 import { recordNonServiceableZipAction } from "../lib/service-area-actions";
 import { INSURANCE_PROVIDERS, isServiceableZipPrefix } from "../lib/service-area";
+import { pushGtmEvent } from "../lib/analytics";
 
 type Lead = {
   name: string;
@@ -48,6 +49,7 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
     setCampaign(match);
     setUnsupported(!match);
     setZipError("");
+    pushGtmEvent("referral_zip_entered", { referral_code: code, zip, state: match?.state ?? null, serviceable: Boolean(match) });
     if (!match) recordNonServiceableZipAction(zip, code).catch(() => {});
   }
 
@@ -84,6 +86,7 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
     setTrackPath(outcome.trackPath);
     setSubmitted(true);
     setFormError("");
+    pushGtmEvent("referral_quote_submitted", { referral_code: code, referral_id: outcome.referralId, state: campaign.state });
   }
 
   function update(field: keyof Lead, value: string) {

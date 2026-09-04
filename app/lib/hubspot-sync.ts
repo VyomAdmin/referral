@@ -41,7 +41,11 @@ export async function syncReferralToHubSpot(referralId: string) {
   const [referral] = await db.select().from(referrals).where(eq(referrals.id, referralId)).limit(1);
   if (!referral) return;
 
-  const [referrer] = await db.select({ code: referrers.code }).from(referrers).where(eq(referrers.id, referral.referrerId)).limit(1);
+  const [referrer] = await db
+    .select({ id: referrers.id, code: referrers.code, firstName: referrers.firstName, lastName: referrers.lastName, email: referrers.email, phone: referrers.phone, hubspotContactId: referrers.hubspotContactId })
+    .from(referrers)
+    .where(eq(referrers.id, referral.referrerId))
+    .limit(1);
   const referralCode = referrer?.code ?? "";
 
   if (!process.env.HUBSPOT_PIPELINE_ID || !process.env.HUBSPOT_STAGE_NEW_ID) {
@@ -67,6 +71,26 @@ export async function syncReferralToHubSpot(referralId: string) {
       await db.update(referrals).set({ hubspotContactId: contactId }).where(eq(referrals.id, referralId));
     }
 
+    // Give the referrer their own HubSpot contact (created once, reused on every
+    // subsequent referral they make) so they show up on the deal, not just as a
+    // free-text property — per the audit, referrers previously reached HubSpot
+    // as text only, with no linked contact record.
+    let referrerContactId = referrer?.hubspotContactId ?? null;
+    if (referrer && !referrerContactId) {
+      referrerContactId =
+        (await findContactByEmailOrPhone(referrer.email, referrer.phone)) ??
+        (await createContact({
+          firstName: referrer.firstName,
+          lastName: referrer.lastName,
+          email: referrer.email,
+          phone: referrer.phone,
+          leadSource: LEAD_SOURCE,
+          secondaryLeadSource: SECONDARY_LEAD_SOURCE,
+          referralCode: referrer.code,
+        }));
+      await db.update(referrers).set({ hubspotContactId: referrerContactId }).where(eq(referrers.id, referrer.id));
+    }
+
     const { properties: dealFieldProperties, notes: installNotes } = await resolveDealFields([
       { property: "install_state", value: stateName(referral.state as "AZ" | "FL") },
       { property: "install_zip", value: referral.zip },
@@ -78,12 +102,16 @@ export async function syncReferralToHubSpot(referralId: string) {
 
     const deal = await createDeal({
       contactId,
+      referrerContactId: referrerContactId ?? undefined,
       dealName: `${referral.customerFirstName} ${referral.customerLastName} — ${referral.state} ${referral.zip}`,
       pipeline: process.env.HUBSPOT_PIPELINE_ID,
       dealstage: process.env.HUBSPOT_STAGE_NEW_ID,
       leadSource: LEAD_SOURCE,
       secondaryLeadSource: SECONDARY_LEAD_SOURCE,
       referralCode: referralCode,
+      referredByName: referrer ? `${referrer.firstName} ${referrer.lastName}`.trim() : "",
+      referredByEmail: referrer?.email ?? "",
+      referredByPhone: referrer?.phone ?? "",
       contactPhone: referral.customerPhone,
       extraProperties: dealFieldProperties,
       installNotes: installNotes || undefined,

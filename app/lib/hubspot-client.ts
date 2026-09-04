@@ -119,12 +119,21 @@ export async function getDealStageLabel(pipelineId: string, stageId: string): Pr
 
 export type HubSpotDealInput = {
   contactId: string;
+  // The referrer's own HubSpot contact, associated on the deal alongside the
+  // customer contact so the referrer shows up on the deal's timeline too —
+  // per the audit, a referral deal previously carried no referrer attribution
+  // at all beyond a free-text property. Omitted when it's the same contact
+  // (e.g. lookup collision) or couldn't be resolved.
+  referrerContactId?: string;
   dealName: string;
   pipeline: string;
   dealstage: string;
   leadSource: string;
   secondaryLeadSource: string;
   referralCode: string;
+  referredByName: string;
+  referredByEmail: string;
+  referredByPhone: string;
   contactPhone: string;
   // Already-resolved property values (see resolvePicklistValue) — e.g.
   // { install_state: "Arizona", veh_make__c: "Toyota" }.
@@ -134,6 +143,12 @@ export type HubSpotDealInput = {
 };
 
 export async function createDeal(input: HubSpotDealInput): Promise<{ id: string; stage: string }> {
+  const contactAssociationType = [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 3 }];
+  const associations = [{ to: { id: input.contactId }, types: contactAssociationType }];
+  if (input.referrerContactId && input.referrerContactId !== input.contactId) {
+    associations.push({ to: { id: input.referrerContactId }, types: contactAssociationType });
+  }
+
   const result = await hubSpotFetch("/crm/v3/objects/deals", {
     method: "POST",
     body: JSON.stringify({
@@ -144,16 +159,18 @@ export async function createDeal(input: HubSpotDealInput): Promise<{ id: string;
         incoming_lead_source__c: input.leadSource,
         lead_source__c: input.secondaryLeadSource,
         referral_code__c: input.referralCode,
+        // Legacy duplicate of referral_code__c still read by older reports/
+        // workflows in this HubSpot portal (per the cutover audit) — kept in
+        // sync so nothing downstream silently sees an empty value.
+        referralcode: input.referralCode,
+        referred_by: input.referredByName,
+        referral_email__c: input.referredByEmail,
+        referral_phone__c: input.referredByPhone,
         contact_phone_1__c: input.contactPhone,
         ...input.extraProperties,
         ...(input.installNotes ? { install_notes__c: input.installNotes } : {}),
       },
-      associations: [
-        {
-          to: { id: input.contactId },
-          types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 3 }],
-        },
-      ],
+      associations,
     }),
   });
   return { id: result.id, stage: result.properties?.dealstage ?? input.dealstage };

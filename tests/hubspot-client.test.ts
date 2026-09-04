@@ -31,7 +31,7 @@ test("createContact posts the form fields and returns the new contact id", async
     capturedBody = init.body as string;
     return new Response(JSON.stringify({ id: "contact-2" }), { status: 201 });
   });
-  const id = await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral" });
+  const id = await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral", secondaryLeadSource: "Marketing", referralCode: "NV-SJ-9012" });
   assert.equal(id, "contact-2");
   assert.deepEqual(JSON.parse(capturedBody).properties, {
     firstname: "Jane",
@@ -39,25 +39,27 @@ test("createContact posts the form fields and returns the new contact id", async
     email: "jane@example.com",
     phone: "6025550001",
     incoming_lead_source__c: "Referral",
+    lead_source__c: "Marketing",
+    referral_code__c: "NV-SJ-9012",
   });
 });
 
 test("createContact recovers the existing contact id from a 409 conflict instead of throwing", async () => {
   mock.method(globalThis, "fetch", async () =>
     new Response(JSON.stringify({ status: "error", message: "Contact already exists. Existing ID: 9988", category: "CONFLICT" }), { status: 409 }));
-  const id = await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral" });
+  const id = await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral", secondaryLeadSource: "Marketing", referralCode: "NV-SJ-9012" });
   assert.equal(id, "9988");
 });
 
 test("createContact still throws a 409 whose body doesn't name an existing id", async () => {
   mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ status: "error", message: "Conflict" }), { status: 409 }));
   await assert.rejects(
-    () => createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral" }),
+    () => createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral", secondaryLeadSource: "Marketing", referralCode: "NV-SJ-9012" }),
     (error: unknown) => error instanceof HubSpotApiError && error.status === 409,
   );
 });
 
-test("createDeal sends the pipeline, stage, lead source, contact association, extra properties, and notes", async () => {
+test("createDeal sends the pipeline, stage, lead source, referral attribution, contact association, extra properties, and notes", async () => {
   let capturedBody = "";
   mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
     capturedBody = init.body as string;
@@ -69,6 +71,11 @@ test("createDeal sends the pipeline, stage, lead source, contact association, ex
     pipeline: "691581097",
     dealstage: "1012021141",
     leadSource: "Referral",
+    secondaryLeadSource: "Marketing",
+    referralCode: "NV-SJ-9012",
+    referredByName: "Sam Jones",
+    referredByEmail: "sam@example.com",
+    referredByPhone: "6025550099",
     contactPhone: "6025550001",
     extraProperties: { install_state: "Arizona", install_zip: "85001", veh_make__c: "Toyota" },
     installNotes: "Insurance Provider: Acme Mutual",
@@ -78,12 +85,67 @@ test("createDeal sends the pipeline, stage, lead source, contact association, ex
   assert.equal(body.properties.pipeline, "691581097");
   assert.equal(body.properties.dealstage, "1012021141");
   assert.equal(body.properties.incoming_lead_source__c, "Referral");
+  assert.equal(body.properties.lead_source__c, "Marketing");
+  assert.equal(body.properties.referral_code__c, "NV-SJ-9012");
+  assert.equal(body.properties.referralcode, "NV-SJ-9012");
+  assert.equal(body.properties.referred_by, "Sam Jones");
+  assert.equal(body.properties.referral_email__c, "sam@example.com");
+  assert.equal(body.properties.referral_phone__c, "6025550099");
   assert.equal(body.properties.contact_phone_1__c, "6025550001");
   assert.equal(body.properties.install_state, "Arizona");
   assert.equal(body.properties.install_zip, "85001");
   assert.equal(body.properties.veh_make__c, "Toyota");
   assert.equal(body.properties.install_notes__c, "Insurance Provider: Acme Mutual");
+  assert.equal(body.associations.length, 1);
   assert.equal(body.associations[0].to.id, "contact-2");
+});
+
+test("createDeal associates the referrer's contact alongside the customer's when they differ", async () => {
+  let capturedBody = "";
+  mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    capturedBody = init.body as string;
+    return new Response(JSON.stringify({ id: "deal-4", properties: { dealstage: "1012021141" } }), { status: 201 });
+  });
+  await createDeal({
+    contactId: "contact-customer",
+    referrerContactId: "contact-referrer",
+    dealName: "Jane Doe — AZ 85001",
+    pipeline: "691581097",
+    dealstage: "1012021141",
+    leadSource: "Referral",
+    secondaryLeadSource: "Marketing",
+    referralCode: "NV-SJ-9012",
+    referredByName: "Sam Jones",
+    referredByEmail: "sam@example.com",
+    referredByPhone: "6025550099",
+    contactPhone: "6025550001",
+  });
+  const body = JSON.parse(capturedBody);
+  assert.deepEqual(body.associations.map((a: { to: { id: string } }) => a.to.id), ["contact-customer", "contact-referrer"]);
+});
+
+test("createDeal doesn't double-associate when the referrer and customer are the same contact", async () => {
+  let capturedBody = "";
+  mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    capturedBody = init.body as string;
+    return new Response(JSON.stringify({ id: "deal-5", properties: { dealstage: "1012021141" } }), { status: 201 });
+  });
+  await createDeal({
+    contactId: "contact-same",
+    referrerContactId: "contact-same",
+    dealName: "Jane Doe — AZ 85001",
+    pipeline: "691581097",
+    dealstage: "1012021141",
+    leadSource: "Referral",
+    secondaryLeadSource: "Marketing",
+    referralCode: "NV-SJ-9012",
+    referredByName: "Sam Jones",
+    referredByEmail: "sam@example.com",
+    referredByPhone: "6025550099",
+    contactPhone: "6025550001",
+  });
+  const body = JSON.parse(capturedBody);
+  assert.equal(body.associations.length, 1);
 });
 
 test("createDeal omits install_notes__c entirely when there are no notes", async () => {
@@ -98,6 +160,11 @@ test("createDeal omits install_notes__c entirely when there are no notes", async
     pipeline: "691581097",
     dealstage: "1012021141",
     leadSource: "Referral",
+    secondaryLeadSource: "Marketing",
+    referralCode: "NV-JR-1122",
+    referredByName: "Sam Jones",
+    referredByEmail: "sam@example.com",
+    referredByPhone: "6025550099",
     contactPhone: "3055550001",
   });
   const body = JSON.parse(capturedBody);

@@ -3,6 +3,7 @@ import { Geist_Mono, Poppins } from "next/font/google";
 import { headers } from "next/headers";
 import { ThemeToggle, THEME_INIT_SCRIPT } from "./components/theme-toggle";
 import { SalesIqWidget } from "./components/salesiq-widget";
+import { GoogleTagManager } from "./components/google-tag-manager";
 import "./globals.css";
 
 // Matches the brand font used on nuvisionautoglass.com (--font-primary: "Poppins", ...).
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${poppins.variable} ${geistMono.variable}`}>
+        <GoogleTagManager />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {children}
         <ThemeToggle />

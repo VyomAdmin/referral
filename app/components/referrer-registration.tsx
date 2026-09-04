@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { isValidPhone } from "../lib/referral-rules";
 import { submitReferrerRegistrationAction } from "../lib/referrer-actions";
+import { pushGtmEvent } from "../lib/analytics";
 
 type Registration = {
   firstName: string;
@@ -49,6 +50,7 @@ export function ReferrerRegistration() {
     setTrackPath(outcome.trackPath);
     setResult({ code: outcome.code, firstName: outcome.firstName });
     setError("");
+    pushGtmEvent("referral_link_created", { referral_code: outcome.code });
   }
 
   async function copyLink() {

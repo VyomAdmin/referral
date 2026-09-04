@@ -1,0 +1,1 @@
+ALTER TABLE "referrers" ADD COLUMN "hubspot_contact_id" text;

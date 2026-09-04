@@ -39,6 +39,7 @@ export const referrers = pgTable("referrers", {
   email: text("email").notNull(),
   phone: text("phone").notNull(),
   status: text("status").notNull().default("active"),
+  hubspotContactId: text("hubspot_contact_id"),
   ...timestamps,
 }, (table) => [uniqueIndex("referrer_org_code_idx").on(table.organizationId, table.code)]);
 
