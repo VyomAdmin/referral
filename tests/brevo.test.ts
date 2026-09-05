@@ -13,6 +13,30 @@ test("maps Brevo events onto the statuses the admin dashboard counts", () => {
   assert.equal(statusForBrevoEvent("invalid_email"), "bounced");
   assert.equal(statusForBrevoEvent("spam"), "bounced");
   assert.equal(statusForBrevoEvent("unsubscribed"), "unsubscribed");
+  assert.equal(statusForBrevoEvent("proxy_open"), "opened");
+  assert.equal(statusForBrevoEvent("unique_proxy_open"), "opened");
+  assert.equal(statusForBrevoEvent("error"), "failed");
+});
+
+// Brevo's webhook *config* uses camelCase names (hardBounce, uniqueOpened) but
+// the delivered payload's "event" field is snake_case. These are the payload
+// spellings, which is what the handler actually receives.
+test("every payload event name Brevo can send is either mapped or deliberately ignored", () => {
+  const payloadEvents = [
+    "request", "delivered", "hard_bounce", "soft_bounce", "blocked", "spam",
+    "invalid_email", "deferred", "click", "opened", "unique_opened",
+    "proxy_open", "unique_proxy_open", "unsubscribed", "error",
+  ];
+  const unmapped = payloadEvents.filter((event) => statusForBrevoEvent(event) === null);
+  assert.deepEqual(unmapped, ["deferred"]);
+});
+
+// A send error has to be able to land on an email we already marked "sent",
+// or the failure would never show in the dashboard.
+test("a send error outranks sent but not a confirmed delivery", () => {
+  assert.equal(shouldAdvanceStatus("sent", "failed"), true);
+  assert.equal(shouldAdvanceStatus("delivered", "failed"), false);
+  assert.equal(shouldAdvanceStatus("opened", "failed"), false);
 });
 
 test("event names are matched case-insensitively", () => {

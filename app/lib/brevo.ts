@@ -89,6 +89,7 @@ const EVENT_STATUS: Record<string, EmailStatus> = {
   opened: "opened",
   unique_opened: "opened",
   proxy_open: "opened",
+  unique_proxy_open: "opened",
   click: "clicked",
   hard_bounce: "bounced",
   soft_bounce: "bounced",
@@ -107,8 +108,11 @@ const EVENT_STATUS: Record<string, EmailStatus> = {
 // would silently un-open an email in the dashboard.
 const STATUS_RANK: Record<EmailStatus, number> = {
   queued: 0,
-  failed: 1,
-  sent: 2,
+  sent: 1,
+  // A send error is a non-delivery outcome, so it has to outrank "sent" or a
+  // Brevo "error" event could never be recorded against an email we'd already
+  // marked sent. It still can't overwrite a confirmed delivery.
+  failed: 2,
   bounced: 3,
   unsubscribed: 3,
   delivered: 4,
