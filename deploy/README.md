@@ -105,6 +105,70 @@ block (same pattern as `DATABASE_URL`/`AUTH_SECRET` — see bug #2). Until then,
 the webhook route (`app/api/webhooks/hubspot/route.ts`) correctly returns a
 503 "HubSpot is not configured" — verified live.
 
+## 3b. Connect Brevo (transactional email)
+
+Brevo replaces Gmail SMTP. The point is delivery signal: SMTP tells you nothing
+after the handshake, which is why the admin "Email activity" view could only
+ever read "Delivered 0, Opened 0, Bounced 0". Brevo posts
+delivered/opened/click/bounce webhooks back, and those fill that view in.
+
+The code ships inert: with no `BREVO_API_KEY` set, `sendEmail` keeps using
+Gmail, so there is no window where referral emails stop. Brevo takes over the
+moment the key exists.
+
+**1. Verify the sending domain in Brevo** (Senders, Domains & Dedicated IPs ->
+Domains). Add the DKIM and SPF records Brevo shows to the DNS for
+`nuvisionautoglass.com`, plus a DMARC record if there isn't one. The From
+address must be on a verified domain or Brevo rejects the send outright rather
+than quietly landing it in spam.
+
+**2. Create the secrets.** The webhook token is ours, not Brevo's - Brevo does
+not sign its webhooks, so the endpoint is authenticated by an unguessable token
+we generate and put in the URL. Generate it, don't invent one by hand:
+
+```bash
+aws secretsmanager create-secret --name nuvision-referral/BREVO_API_KEY   --secret-string "<the xkeysib-... key from Brevo -> SMTP & API -> API keys>" --region us-east-1
+
+aws secretsmanager create-secret --name nuvision-referral/BREVO_WEBHOOK_TOKEN   --secret-string "$(openssl rand -hex 32)" --region us-east-1
+```
+
+**3. Add both to the App Runner instance role's policy and to `apprunner.yaml`**
+under `run.secrets`, using the full ARN *including* the random suffix that
+`create-secret` returns. An ARN without that suffix fails the deploy:
+
+```bash
+aws secretsmanager describe-secret --secret-id nuvision-referral/BREVO_API_KEY   --region us-east-1 --query ARN --output text
+```
+
+Also set the two plain env vars under `run.env`:
+
+```yaml
+    - name: BREVO_SENDER_EMAIL
+      value: "referrals@nuvisionautoglass.com"   # must be on the verified domain
+    - name: BREVO_SENDER_NAME
+      value: "NuVision Auto Glass"
+```
+
+**4. Point Brevo's webhook at the app** (Transactional -> Settings -> Webhooks).
+URL, with the token you generated:
+
+```
+https://uykwpxswmu.us-east-1.awsapprunner.com/api/webhooks/brevo?token=<BREVO_WEBHOOK_TOKEN>
+```
+
+Subscribe to: delivered, opened (or unique opened), click, hard bounce, soft
+bounce, blocked, invalid email, spam, unsubscribed. `deferred` is deliberately
+ignored by the handler - it's a retry in progress, not an outcome.
+
+**5. Verify.** Until the token is set the route returns 503 "Brevo webhooks are
+not configured"; with a wrong token it returns 401. After a real send, the
+`email_events` row should move `sent` -> `delivered` -> `opened`, and the admin
+Email activity counters should stop reading zero.
+
+**6. Once delivery is confirmed**, remove `GMAIL_AUTH_EMAIL` and
+`GMAIL_APP_PASSWORD` from `apprunner.yaml` and delete those two secrets. The
+Gmail code path exists only to cover the cutover.
+
 ## 4. Seed a real admin user
 
 There's no signup flow (`/admin` is invite-only by design). Create a login by

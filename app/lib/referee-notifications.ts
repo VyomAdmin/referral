@@ -50,6 +50,7 @@ export async function notifyReferee(referral: NotifiableReferee, trackPath: stri
       subject: `Your NuVision ${campaign.stateName} service request is confirmed`,
       html: refereeConfirmationEmailHtml(referral.firstName, referrerName, campaign, trackUrl),
       text: `Thanks for your request, ${referral.firstName}! NuVision has received your ${campaign.stateName} windshield service request through ${referrerName}'s referral. Track it here: ${trackUrl}`,
+      tag: "referee_referral_confirmation",
     });
     await getDb().insert(emailEvents).values({
       id: crypto.randomUUID(),

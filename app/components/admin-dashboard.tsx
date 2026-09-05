@@ -6,6 +6,15 @@ import { AddUserForm } from "./add-user-form";
 import { TotpEnrollmentForm } from "./totp-enrollment-form";
 import { AdminReferral, ReferralStatus } from "../lib/admin-data";
 import type { AdminCampaign, AdminEmailEvent, AdminReferrerStats } from "../lib/admin-queries";
+
+type IntegrationsStatus = {
+  hubspotConfigured: boolean;
+  // null = no transactional provider configured at all. Brevo wins when both
+  // it and the legacy Gmail credentials are present.
+  emailProvider: "brevo" | "gmail" | null;
+  brevoWebhookConfigured: boolean;
+  twilioConfigured: boolean;
+};
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
 import { markReferralPaidAction, retryHubSpotSyncsAction, retrySingleHubSpotSyncAction, updateCampaignAction, updateReferralContactAction } from "../lib/admin-actions";
@@ -54,7 +63,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
   initialCampaigns: AdminCampaign[];
   initialEmailTemplates: CampaignEmailTemplate[];
   initialSmsTemplates: CampaignSmsTemplate[];
-  integrationsStatus: { hubspotConfigured: boolean; gmailConfigured: boolean; twilioConfigured: boolean };
+  integrationsStatus: IntegrationsStatus;
   referrerStats: AdminReferrerStats;
   emailEvents: AdminEmailEvent[];
   totpEnabled: boolean;
@@ -648,7 +657,7 @@ function AnalyticsView({ referrals }: { referrals: AdminReferral[] }) {
   return <><PageTitle eyebrow="PERFORMANCE" title="Referral analytics" description="Understand volume, conversion, markets, and reward efficiency." /><div className="analytics-grid"><section className="admin-card"><div className="admin-card-head"><div><span>MONTHLY VOLUME</span><h2>Forms and installations</h2></div></div><div className="bar-chart">{monthly.map((bar) => <div key={bar.label}><i style={{ height: `${bar.formsHeight}%` }} /><b style={{ height: `${bar.installedHeight}%` }} /><span>{bar.label}</span></div>)}</div></section><section className="admin-card market-performance"><div className="admin-card-head"><div><span>BY MARKET</span><h2>Installation conversion</h2></div></div>{marketBreakdown.length === 0 ? <p className="empty-table">No referrals yet.</p> : marketBreakdown.map(({ state, rate }) => <div key={state}><span>{state}</span><div><i style={{ width: `${rate}%` }} /></div><strong>{rate}%</strong></div>)}</section></div></>;
 }
 
-function IntegrationsView({ status }: { status: { hubspotConfigured: boolean; gmailConfigured: boolean; twilioConfigured: boolean } }) {
+function IntegrationsView({ status }: { status: IntegrationsStatus }) {
   return (
     <>
       <PageTitle eyebrow="SYSTEM HEALTH" title="Integrations" description="Live send status for the services this app talks to." />
@@ -660,8 +669,8 @@ function IntegrationsView({ status }: { status: { hubspotConfigured: boolean; gm
         </article>
         <article className="admin-card integration-card">
           <div className="integration-logo email-logo">@</div>
-          <div><span className={status.gmailConfigured ? "active-dot" : "paused-dot"}>{status.gmailConfigured ? "Live" : "Not configured"}</span><h2>Referrer email (Gmail)</h2><p>Sends the active campaign email template — or the built-in default — to referrers via Gmail SMTP.</p></div>
-          <dl><div><dt>Live sending</dt><dd>{status.gmailConfigured ? "Enabled" : "Disabled"}</dd></div><div><dt>Provider</dt><dd>Gmail (SMTP app password)</dd></div></dl>
+          <div><span className={status.emailProvider ? "active-dot" : "paused-dot"}>{status.emailProvider ? "Live" : "Not configured"}</span><h2>Transactional email</h2><p>Sends the active campaign email template — or the built-in default — to referrers and referred customers.</p></div>
+          <dl><div><dt>Live sending</dt><dd>{status.emailProvider ? "Enabled" : "Disabled"}</dd></div><div><dt>Provider</dt><dd>{status.emailProvider === "brevo" ? "Brevo (API)" : status.emailProvider === "gmail" ? "Gmail (SMTP app password)" : "None"}</dd></div><div><dt>Delivery tracking</dt><dd>{status.emailProvider !== "brevo" ? "Unavailable on this provider" : status.brevoWebhookConfigured ? "Webhooks enabled" : "Webhook token not set"}</dd></div></dl>
         </article>
         <article className="admin-card integration-card">
           <div className="integration-logo email-logo">✉</div>

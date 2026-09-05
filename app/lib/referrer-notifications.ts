@@ -73,7 +73,7 @@ async function sendReferrerEmail(event: EmailEvent, referrer: NotifiableReferrer
     html = legacyEmailHtml(legacy, context.referral_link);
   }
 
-  const result = await sendEmail({ to: referrer.email, subject, html, text });
+  const result = await sendEmail({ to: referrer.email, subject, html, text, tag: event });
   await getDb().insert(emailEvents).values({
     id: crypto.randomUUID(),
     organizationId: referrer.organizationId,
