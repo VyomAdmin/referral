@@ -23,6 +23,10 @@ run:
       value: "+16233236445"
     - name: TWILIO_FROM_NUMBER_FL
       value: "+17867861238"
+    - name: BREVO_SENDER_EMAIL
+      value: "referral@nuvisionautoglass.com"
+    - name: BREVO_SENDER_NAME
+      value: "NuVision Auto Glass"
   secrets:
     - name: DATABASE_URL
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/DATABASE_URL-xwlrMa
@@ -36,6 +40,12 @@ run:
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/TWILIO_ACCOUNT_SID-EbTkz2
     - name: TWILIO_AUTH_TOKEN
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/TWILIO_AUTH_TOKEN-9UByE4
+    - name: BREVO_API_KEY
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/BREVO_API_KEY-oqkw2A
+    - name: BREVO_WEBHOOK_TOKEN
+      value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/BREVO_WEBHOOK_TOKEN-YQ027i
+    # Legacy Gmail SMTP - Brevo takes precedence when BREVO_API_KEY is set.
+    # Remove these two once Brevo delivery is verified in production.
     - name: GMAIL_AUTH_EMAIL
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/GMAIL_AUTH_EMAIL-AQgnUR
     - name: GMAIL_APP_PASSWORD
