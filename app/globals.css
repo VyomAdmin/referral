@@ -298,8 +298,6 @@ a { color: inherit; }
 .offer-card { display: grid; gap: 5px; padding: 16px; border-left: 3px solid var(--lime-dark); border-radius: 4px 13px 13px 4px; background: var(--tone-lime-bg); }
 .offer-card span { color: var(--lime-dark); font-size: 9px; letter-spacing: 1.4px; font-weight: 850; }
 .offer-card strong { font-size: 13px; line-height: 1.45; }
-.offer-card-neutral { border-left-color: var(--tone-slate-border); background: var(--tone-slate-bg); }
-.offer-card-neutral span { color: var(--tone-slate-fg); }
 .form-title-row { display: flex; align-items: end; justify-content: space-between; gap: 15px; }
 .form-title-row h2 { margin-top: 5px; }
 .text-button { border: 0; background: none; color: var(--blue-700); font-size: 12px; font-weight: 750; cursor: pointer; }
@@ -653,4 +651,41 @@ form.settings-panel-card footer { display: flex; justify-content: flex-end; gap:
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: .01ms !important; }
+}
+
+/* Referee form: per-field wrapper (cutover audit R-01/R-03). The input is now a
+   sibling of the label rather than nested inside it, so each field can carry its
+   own error message and aria-describedby target. */
+.field { display: grid; gap: 7px; min-width: 0; }
+.field > label { display: block; color: var(--ink); font-size: 12px; font-weight: 750; }
+.field-error { margin: 0; color: var(--tone-red-fg); font-size: 12px; font-weight: 650; line-height: 1.35; }
+.customer-form input[aria-invalid="true"], .customer-form select[aria-invalid="true"] { border-color: var(--tone-red-fg); }
+.form-assist { margin: 0; color: var(--muted); font-size: 13px; text-align: center; }
+.form-assist a, .consent-row a { color: var(--orange-light); font-weight: 700; }
+
+/* R-06: the main site leads with "Call NOW" — the referee page had no phone
+   number at all. R-07: the sidebar below the hero was empty; these are the same
+   service claims the main site already makes publicly. */
+.call-now { display: inline-flex; align-items: center; gap: 12px; margin-top: 26px; padding: 12px 18px 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-soft); color: var(--ink); text-decoration: none; }
+.call-now:hover { border-color: var(--orange); }
+.call-now > span:first-child { font-size: 20px; color: var(--orange); }
+.call-now small { display: block; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.call-now strong { font-size: 18px; letter-spacing: -.4px; }
+
+.trust-signals { display: grid; gap: 14px; margin: 26px 0 0; padding: 0; list-style: none; max-width: 430px; }
+.trust-signals li { display: grid; gap: 3px; padding-left: 24px; position: relative; }
+.trust-signals li::before { content: "\2713"; position: absolute; left: 0; top: 1px; color: var(--orange); font-weight: 800; }
+.trust-signals strong { font-size: 14px; color: var(--ink); }
+.trust-signals span { color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+/* R-09: what actually happens after the form is submitted. */
+.next-steps { display: grid; gap: 16px; margin: 30px auto; padding: 0; max-width: 560px; list-style: none; counter-reset: next-step; text-align: left; }
+.next-steps li { display: grid; gap: 3px; padding-left: 42px; position: relative; counter-increment: next-step; }
+.next-steps li::before { content: counter(next-step); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: var(--blue-900); color: white; font-size: 13px; font-weight: 800; }
+.next-steps strong { font-size: 15px; color: var(--ink); }
+.next-steps span { color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+@media (max-width: 720px) {
+  .trust-signals, .call-now { margin-top: 20px; }
+  .next-steps { margin: 24px 0; }
 }

@@ -7,7 +7,7 @@ import { getDefaultOrganizationId } from "./organization.ts";
 import { getOrCreateCampaignId } from "./campaign-directory.ts";
 import { syncReferralToHubSpot } from "./hubspot-sync.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
-import { campaignForZip, isValidEmail, isValidPhone } from "./referral-rules.ts";
+import { campaignForZip, isValidEmail, isValidPhone, isValidVehicleYear, normalizeVehicleText } from "./referral-rules.ts";
 import { notifyReferrer } from "./referrer-notifications.ts";
 import { notifyReferee } from "./referee-notifications.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
@@ -58,6 +58,16 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
     return { error: "We don't yet support service in this area." };
   }
 
+  // Vehicle make/model are free text, so normalize casing server-side (never
+  // only in the browser — this action is reachable directly). One spelling per
+  // make keeps HubSpot reports that group by make from fragmenting.
+  const vehicleMake = normalizeVehicleText(input.vehicleMake ?? "");
+  const vehicleModel = normalizeVehicleText(input.vehicleModel ?? "");
+  const vehicleYear = (input.vehicleYear ?? "").trim();
+  if (vehicleYear && !isValidVehicleYear(vehicleYear)) {
+    return { error: "Enter a valid vehicle year." };
+  }
+
   const clientIp = await getClientIp();
   const withinLimit = await checkRateLimit(`referral-submit:${clientIp}`, MAX_SUBMISSIONS_PER_WINDOW, SUBMISSION_WINDOW_MINUTES);
   if (!withinLimit) {
@@ -89,9 +99,9 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
     customerPhone: phone,
     zip: input.zip,
     state: campaign.state,
-    vehicleMake: input.vehicleMake || null,
-    vehicleYear: input.vehicleYear || null,
-    vehicleModel: input.vehicleModel || null,
+    vehicleMake: vehicleMake || null,
+    vehicleYear: vehicleYear || null,
+    vehicleModel: vehicleModel || null,
     insuranceProvider: input.insuranceProvider || null,
     consentGivenAt: new Date(),
     publicStatus: "received",

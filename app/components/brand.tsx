@@ -7,6 +7,27 @@ export const NUVISION_HOME_URL = "https://www.nuvisionautoglass.com/";
 // row. Referral-code validation on /r/[code] must treat it as always valid.
 export const GENERIC_REFERRAL_CODE = "NV-NUVISION";
 
+// The number the main site leads with ("Call NOW"). Kept here so the referral
+// site can't drift from it, and so the referee flow has the same call-now
+// escape hatch the main site's quote form offers.
+export const SUPPORT_PHONE_DISPLAY = "1855-213-0100";
+export const SUPPORT_PHONE_HREF = "tel:+18552130100";
+
+// Consent copy has to link to the actual policies for the consent to be
+// provable (cutover audit C-01); these live on the main site, not here.
+export const TERMS_URL = `${NUVISION_HOME_URL}terms-conditions/`;
+export const PRIVACY_URL = `${NUVISION_HOME_URL}privacy-policy/`;
+
+// Verified service claims carried over from the main site, shown alongside the
+// referee form as trust signals (cutover audit R-07). Only claims the main site
+// already makes publicly — nothing invented for this page.
+export const TRUST_SIGNALS: readonly { title: string; detail: string }[] = [
+  { title: "$0 with insurance", detail: "Most comprehensive policies cover the full replacement." },
+  { title: "Same-day mobile service", detail: "We come to your home or workplace, seven days a week." },
+  { title: "Lifetime warranty", detail: "Covered for as long as you own the vehicle." },
+  { title: "OEM glass & ADAS calibration", detail: "Camera and sensor recalibration done with the fit." },
+];
+
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <a className={`brand ${compact ? "brand-compact" : ""}`} href={NUVISION_HOME_URL} aria-label="NuVision Auto Glass home">

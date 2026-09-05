@@ -32,3 +32,10 @@ test("customer referral is rejected when the ZIP falls outside AZ/FL coverage", 
   const outcome = await submitCustomerReferralAction({ ...validInput, zip: "10001", consent: true });
   assert.deepEqual(outcome, { error: "We don't yet support service in this area." });
 });
+
+// R-02: the year bound is enforced server-side too, ahead of any DB work, so a
+// direct call to the action can't store a nonsense year the form would reject.
+test("customer referral is rejected when the vehicle year is out of range", async () => {
+  const outcome = await submitCustomerReferralAction({ ...validInput, vehicleYear: "1899", consent: true });
+  assert.deepEqual(outcome, { error: "Enter a valid vehicle year." });
+});
