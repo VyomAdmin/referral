@@ -7,7 +7,8 @@ import { getDefaultOrganizationId } from "./organization.ts";
 import { getOrCreateCampaignId } from "./campaign-directory.ts";
 import { syncReferralToHubSpot } from "./hubspot-sync.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
-import { campaignForZip, isValidEmail, isValidPhone, isValidVehicleYear, normalizeVehicleText } from "./referral-rules.ts";
+import { campaignForZip, isValidEmail, isValidPhone } from "./referral-rules.ts";
+import { canonicalizeVehicle, isCatalogVehicleYear } from "./vehicle-catalog.ts";
 import { notifyReferrer } from "./referrer-notifications.ts";
 import { notifyReferee } from "./referee-notifications.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
@@ -58,13 +59,13 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
     return { error: "We don't yet support service in this area." };
   }
 
-  // Vehicle make/model are free text, so normalize casing server-side (never
-  // only in the browser — this action is reachable directly). One spelling per
-  // make keeps HubSpot reports that group by make from fragmenting.
-  const vehicleMake = normalizeVehicleText(input.vehicleMake ?? "");
-  const vehicleModel = normalizeVehicleText(input.vehicleModel ?? "");
+  // Resolve the vehicle against the same cars.json catalogue the main site's
+  // quote form uses, server-side — the form sends catalogue values, but this
+  // action is reachable directly, and one spelling per make is what keeps
+  // HubSpot reports grouped by make from fragmenting.
+  const { make: vehicleMake, model: vehicleModel } = canonicalizeVehicle(input.vehicleMake ?? "", input.vehicleModel ?? "");
   const vehicleYear = (input.vehicleYear ?? "").trim();
-  if (vehicleYear && !isValidVehicleYear(vehicleYear)) {
+  if (vehicleYear && !isCatalogVehicleYear(vehicleYear)) {
     return { error: "Enter a valid vehicle year." };
   }
 

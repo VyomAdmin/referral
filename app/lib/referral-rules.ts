@@ -66,36 +66,19 @@ export function createReferralCode(firstName: string, lastName: string, seed: nu
 
 export const supportedCampaigns = Object.values(campaigns);
 
-// Oldest vehicle year the quote form accepts. Anything older is almost always
-// a typo (a phone number fragment, a partial year) rather than a real car we'd
-// be asked to fit glass to.
-export const MIN_VEHICLE_YEAR = 1950;
-
-// Next model year, not the current one: dealers sell the following year's
-// models from roughly Q3, so a 2027 in late 2026 is legitimate.
-export function maxVehicleYear(now: Date = new Date()) {
-  return now.getFullYear() + 1;
-}
-
-export function isValidVehicleYear(year: string, now: Date = new Date()) {
-  if (!/^\d{4}$/.test(year)) return false;
-  const value = Number(year);
-  return value >= MIN_VEHICLE_YEAR && value <= maxVehicleYear(now);
-}
-
-// Makes whose canonical spelling isn't plain title case. Keyed by the
-// lowercased input so any casing the customer types collapses to one form.
-// This is the "RAM vs Ram" drift the cutover audit flagged: free-text vehicle
-// fields were reaching HubSpot in whatever casing was typed, fragmenting
-// reports that group by make. Normalizing on the way in keeps one spelling per
-// make without forcing a dropdown.
+// Fallback casing map for vehicle text the catalogue doesn't recognise (an
+// "Other" make, or a model typed free-hand). cars.json is the real source of
+// truth — see canonicalizeVehicle in vehicle-catalog.ts, which consults it
+// first. Entries here must not contradict the catalogue's own spellings;
+// tests/vehicle-catalog.test.ts enforces that.
 const VEHICLE_TEXT_EXCEPTIONS: Record<string, string> = {
   ram: "RAM",
   bmw: "BMW",
+  mclaren: "McLaren",
   gmc: "GMC",
-  mini: "MINI",
+  mini: "Mini",
   kia: "Kia",
-  fiat: "FIAT",
+  fiat: "Fiat",
   mazda: "Mazda",
   bev: "BEV",
   suv: "SUV",
@@ -147,7 +130,15 @@ export function normalizeVehicleText(value: string) {
     .map((word) => {
       const exact = VEHICLE_TEXT_EXCEPTIONS[word.toLowerCase()];
       if (exact) return exact;
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      // Hyphenated names capitalise each part ("mercedes-benz" -> "Mercedes-Benz").
+      return word
+        .split("-")
+        .map((part) => {
+          const partException = VEHICLE_TEXT_EXCEPTIONS[part.toLowerCase()];
+          if (partException) return partException;
+          return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+        })
+        .join("-");
     })
     .join(" ");
 }

@@ -90,3 +90,38 @@ test("no 'no offer is active' copy ships anywhere in the referee flow", async ()
   assert.doesNotMatch(html, /No additional customer offer is active/);
   assert.doesNotMatch(html, /LOCAL SERVICE/);
 });
+
+// R-04: the vehicle make dropdown is built from the main site's own
+// car-makes.json, so the referral form and the main quote form offer exactly the
+// same vehicles. Asserted against the built client bundle rather than the
+// server-rendered HTML, because the vehicle step only renders after a ZIP is
+// entered. The full cars.json (~680KB) must stay OUT of every client chunk — it
+// is fetched from /cars.json on demand when a make is chosen.
+test("the make list ships in the client bundle and the full catalogue does not", async () => {
+  const { readdir, readFile, stat } = await import("node:fs/promises");
+  const chunkDir = new URL("../dist/client/_next/static/chunks/", import.meta.url);
+  const names = await readdir(chunkDir);
+  const journey = names.find((name) => name.startsWith("referral-journey-"));
+  assert.ok(journey, "referral-journey chunk not found");
+
+  const bundle = await readFile(new URL(journey, chunkDir), "utf8");
+  assert.match(bundle, /Mercedes-Benz/);
+  assert.match(bundle, /McLaren/);
+  assert.match(bundle, /Choose your car make/);
+
+  // Every chunk stays well under the size the full catalogue would force.
+  for (const name of names) {
+    const { size } = await stat(new URL(name, chunkDir));
+    assert.ok(size < 300_000, `${name} is ${size} bytes — cars.json may have been bundled`);
+  }
+});
+
+// The on-demand catalogue has to actually be served, or the model dropdown
+// silently degrades to free text for every customer.
+test("the full vehicle catalogue is served as a static asset", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const raw = await readFile(new URL("../dist/client/cars.json", import.meta.url), "utf8");
+  const catalogue = JSON.parse(raw);
+  assert.ok(Array.isArray(catalogue.data) && catalogue.data.length > 40);
+  assert.ok(catalogue.data.some((entry) => entry.make === "RAM"));
+});

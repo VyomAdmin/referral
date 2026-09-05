@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { campaignForZip, createReferralCode, isValidEmail, isValidPhone, isValidVehicleYear, MIN_VEHICLE_YEAR, normalizeVehicleText, stateName } from "../app/lib/referral-rules.ts";
+import { campaignForZip, createReferralCode, isValidEmail, isValidPhone, normalizeVehicleText, stateName } from "../app/lib/referral-rules.ts";
 
 test("routes Arizona ZIP codes to the Arizona offer", () => {
   const campaign = campaignForZip("85001");
@@ -89,20 +89,4 @@ test("normalizeVehicleText canonicalises known model spellings", () => {
 test("normalizeVehicleText leaves an empty value empty", () => {
   assert.equal(normalizeVehicleText(""), "");
   assert.equal(normalizeVehicleText("   "), "");
-});
-
-// R-02: the Year field had no bounds at all.
-test("vehicle year accepts the model year ahead of the current one", () => {
-  const now = new Date("2026-09-05T00:00:00Z");
-  assert.equal(isValidVehicleYear("2027", now), true);
-  assert.equal(isValidVehicleYear("2028", now), false);
-});
-
-test("vehicle year rejects out-of-range and malformed values", () => {
-  const now = new Date("2026-09-05T00:00:00Z");
-  assert.equal(isValidVehicleYear("1949", now), false);
-  assert.equal(isValidVehicleYear(String(MIN_VEHICLE_YEAR), now), true);
-  assert.equal(isValidVehicleYear("22", now), false);
-  assert.equal(isValidVehicleYear("20a2", now), false);
-  assert.equal(isValidVehicleYear("", now), false);
 });

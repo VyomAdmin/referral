@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
-import { campaignForZip, isValidEmail, isValidPhone, isValidVehicleYear, MIN_VEHICLE_YEAR, maxVehicleYear, StateCampaign } from "../lib/referral-rules";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { campaignForZip, isValidEmail, isValidPhone, StateCampaign } from "../lib/referral-rules";
+import { loadVehicleModels, OTHER_MAKE, VEHICLE_MAKES, VEHICLE_YEAR_RANGE, vehicleYearOptions } from "../lib/vehicle-makes";
 import { submitCustomerReferralAction } from "../lib/referral-actions";
 import { recordNonServiceableZipAction } from "../lib/service-area-actions";
 import { INSURANCE_PROVIDERS, isServiceableZipPrefix } from "../lib/service-area";
@@ -35,10 +36,12 @@ function validateLead(lead: Lead, consent: boolean): FieldErrors {
   else if (!isValidEmail(lead.email)) errors.email = "That email address doesn't look right.";
   if (!lead.phone.trim()) errors.phone = "Enter your mobile number.";
   else if (!isValidPhone(lead.phone)) errors.phone = "Enter a 10-digit US mobile number.";
-  if (!lead.make.trim()) errors.make = "Enter your vehicle's make.";
-  if (!lead.year.trim()) errors.year = "Enter your vehicle's year.";
-  else if (!isValidVehicleYear(lead.year)) errors.year = `Enter a year between ${MIN_VEHICLE_YEAR} and ${maxVehicleYear()}.`;
-  if (!lead.model.trim()) errors.model = "Enter your vehicle's model.";
+  if (!lead.make.trim()) errors.make = "Choose your vehicle's make.";
+  if (!lead.year.trim()) errors.year = "Choose your vehicle's year.";
+  else if (Number(lead.year) < VEHICLE_YEAR_RANGE[0] || Number(lead.year) > VEHICLE_YEAR_RANGE[1]) {
+    errors.year = `Choose a year between ${VEHICLE_YEAR_RANGE[0]} and ${VEHICLE_YEAR_RANGE[1]}.`;
+  }
+  if (!lead.model.trim()) errors.model = "Choose your vehicle's model.";
   if (!lead.insurance) errors.insurance = "Choose your insurance provider.";
   if (!consent) errors.consent = "Please agree to the program terms to continue.";
   return errors;
@@ -65,6 +68,38 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
   const [consent, setConsent] = useState(false);
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  // Model options for the chosen make, loaded from /cars.json on demand. If the
+  // catalogue can't be fetched (or the make is "Other"), the model field falls
+  // back to free text rather than blocking the submission — a CDN hiccup must
+  // never cost a lead.
+  const [modelsByMake, setModelsByMake] = useState<Map<string, string[]> | null>(null);
+  const [catalogueFailed, setCatalogueFailed] = useState(false);
+  const catalogueRequested = useRef(false);
+
+  const catalogueMake = lead.make && lead.make !== OTHER_MAKE ? lead.make : "";
+  const modelOptions = catalogueMake && modelsByMake ? modelsByMake.get(catalogueMake) ?? [] : [];
+  const modelIsFreeText = !catalogueMake || catalogueFailed;
+
+  // Warm the catalogue as soon as a real make is picked. Kicking it off on make
+  // change rather than page load keeps ~680KB off the critical path of a page
+  // whose speed is one of its advantages over the old campaign site.
+  useEffect(() => {
+    if (!catalogueMake || modelsByMake || catalogueFailed || catalogueRequested.current) return;
+    catalogueRequested.current = true;
+    let cancelled = false;
+    loadVehicleModels()
+      .then((map) => {
+        if (!cancelled) setModelsByMake(map);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        catalogueRequested.current = false;
+        setCatalogueFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogueMake, modelsByMake, catalogueFailed]);
   const [submitted, setSubmitted] = useState(false);
   const [trackPath, setTrackPath] = useState("/track/customer/demo");
 
@@ -240,17 +275,31 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
               </div>
               <div className="field">
                 <label htmlFor="lead-make">Vehicle make</label>
-                <input id="lead-make" name="vehicleMake" value={lead.make} onChange={(event) => update("make", event.target.value)} placeholder="Toyota" required aria-invalid={Boolean(fieldErrors.make)} aria-describedby={fieldErrors.make ? "lead-make-error" : undefined} />
+                <select id="lead-make" name="vehicleMake" value={lead.make} onChange={(event) => { update("make", event.target.value); update("model", ""); }} required aria-invalid={Boolean(fieldErrors.make)} aria-describedby={fieldErrors.make ? "lead-make-error" : undefined}>
+                  <option value="">Choose your car make...</option>
+                  {VEHICLE_MAKES.map((make) => <option key={make} value={make}>{make}</option>)}
+                  <option value={OTHER_MAKE}>{OTHER_MAKE}</option>
+                </select>
                 {fieldErrors.make ? <p className="field-error" id="lead-make-error" role="alert">{fieldErrors.make}</p> : null}
               </div>
               <div className="field">
                 <label htmlFor="lead-year">Year</label>
-                <input id="lead-year" name="vehicleYear" value={lead.year} onChange={(event) => update("year", event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="2022" required pattern="\d{4}" minLength={4} maxLength={4} aria-invalid={Boolean(fieldErrors.year)} aria-describedby={fieldErrors.year ? "lead-year-error" : undefined} />
+                <select id="lead-year" name="vehicleYear" value={lead.year} onChange={(event) => update("year", event.target.value)} required aria-invalid={Boolean(fieldErrors.year)} aria-describedby={fieldErrors.year ? "lead-year-error" : undefined}>
+                  <option value="">Choose a year...</option>
+                  {vehicleYearOptions().map((year) => <option key={year} value={year}>{year}</option>)}
+                </select>
                 {fieldErrors.year ? <p className="field-error" id="lead-year-error" role="alert">{fieldErrors.year}</p> : null}
               </div>
               <div className="field">
                 <label htmlFor="lead-model">Model</label>
-                <input id="lead-model" name="vehicleModel" value={lead.model} onChange={(event) => update("model", event.target.value)} placeholder="Camry" required aria-invalid={Boolean(fieldErrors.model)} aria-describedby={fieldErrors.model ? "lead-model-error" : undefined} />
+                {modelIsFreeText ? (
+                  <input id="lead-model" name="vehicleModel" value={lead.model} onChange={(event) => update("model", event.target.value)} placeholder={lead.make ? "Type your model" : "Choose a make first"} required aria-invalid={Boolean(fieldErrors.model)} aria-describedby={fieldErrors.model ? "lead-model-error" : undefined} />
+                ) : (
+                  <select id="lead-model" name="vehicleModel" value={lead.model} onChange={(event) => update("model", event.target.value)} required disabled={!modelsByMake} aria-invalid={Boolean(fieldErrors.model)} aria-describedby={fieldErrors.model ? "lead-model-error" : undefined}>
+                    <option value="">{modelsByMake ? "Choose your car model..." : "Loading models..."}</option>
+                    {modelOptions.map((model) => <option key={model} value={model}>{model}</option>)}
+                  </select>
+                )}
                 {fieldErrors.model ? <p className="field-error" id="lead-model-error" role="alert">{fieldErrors.model}</p> : null}
               </div>
               <div className="field">
