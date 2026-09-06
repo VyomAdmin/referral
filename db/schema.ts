@@ -40,6 +40,13 @@ export const referrers = pgTable("referrers", {
   phone: text("phone").notNull(),
   status: text("status").notNull().default("active"),
   hubspotContactId: text("hubspot_contact_id"),
+  // Provable consent: the tick, when it happened, from where, and the exact
+  // wording that was on screen. Storing the text matters — the terms will be
+  // reworded over time, and "they agreed to whatever the page says today" is
+  // not a defensible record in a dispute.
+  consentGivenAt: timestamp("consent_given_at", { withTimezone: true }),
+  consentIp: text("consent_ip"),
+  consentText: text("consent_text"),
   ...timestamps,
 }, (table) => [uniqueIndex("referrer_org_code_idx").on(table.organizationId, table.code)]);
 
@@ -135,6 +142,11 @@ export const smsEvents = pgTable("sms_events", {
 export const campaignEmailTemplates = pgTable("campaign_email_templates", {
   id: text("id").primaryKey(),
   campaignId: text("campaign_id").notNull().references(() => campaigns.id),
+  // Which notification this template overrides (referrer_welcome,
+  // reward_paid, ...). Before this existed, one active template hijacked every
+  // referrer email for the campaign — a "your reward is ready" template went
+  // out at signup too. Null means the legacy campaign-wide behaviour.
+  templateKey: text("template_key"),
   name: text("name").notNull(),
   subject: text("subject").notNull(),
   bodyHtml: text("body_html").notNull(),
@@ -144,12 +156,14 @@ export const campaignEmailTemplates = pgTable("campaign_email_templates", {
   updatedBy: text("updated_by"),
   ...timestamps,
 }, (table) => [
-  uniqueIndex("campaign_email_templates_active_idx").on(table.campaignId).where(sql`${table.isActive} = true`),
+  uniqueIndex("campaign_email_templates_active_idx").on(table.campaignId, table.templateKey).where(sql`${table.isActive} = true`),
 ]);
 
 export const campaignSmsTemplates = pgTable("campaign_sms_templates", {
   id: text("id").primaryKey(),
   campaignId: text("campaign_id").notNull().references(() => campaigns.id),
+  // Same event-scoping as campaignEmailTemplates — see the note there.
+  templateKey: text("template_key"),
   name: text("name").notNull(),
   body: text("body").notNull(),
   isActive: boolean("is_active").notNull().default(false),
@@ -157,7 +171,7 @@ export const campaignSmsTemplates = pgTable("campaign_sms_templates", {
   updatedBy: text("updated_by"),
   ...timestamps,
 }, (table) => [
-  uniqueIndex("campaign_sms_templates_active_idx").on(table.campaignId).where(sql`${table.isActive} = true`),
+  uniqueIndex("campaign_sms_templates_active_idx").on(table.campaignId, table.templateKey).where(sql`${table.isActive} = true`),
 ]);
 
 export const webhookEvents = pgTable("webhook_events", {

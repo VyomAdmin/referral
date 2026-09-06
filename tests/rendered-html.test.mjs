@@ -125,3 +125,58 @@ test("the full vehicle catalogue is served as a static asset", async () => {
   assert.ok(Array.isArray(catalogue.data) && catalogue.data.length > 40);
   assert.ok(catalogue.data.some((entry) => entry.make === "RAM"));
 });
+
+// Cutover step 6 + audit C-01: the referrer signup needs an affirmative tick,
+// not passive "by continuing you agree" copy, and it must link the program's
+// own terms.
+test("the referrer signup renders a consent checkbox linking the program terms", async () => {
+  const response = await render("/");
+  const html = await response.text();
+  assert.match(html, /id="signup-consent"/);
+  assert.match(html, /type="checkbox"/);
+  assert.match(html, /href="\/terms"/);
+  assert.match(html, /Referral Program Terms/);
+  assert.match(html, /18 or older/);
+  // The old passive wording must be gone, or there'd be two conflicting claims
+  // about what the referrer agreed to.
+  assert.doesNotMatch(html, /By continuing, you agree/);
+});
+
+// C-05: the eligibility disclaimer the old Referral Factory campaign carried.
+test("the referral program terms page states the reward conditions", async () => {
+  const response = await render("/terms");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Referral Program Terms/);
+  assert.match(html, /installation or repair has been completed/i);
+  assert.match(html, /Arizona and Florida/);
+  assert.match(html, /sole and reasonable discretion/i);
+  assert.match(html, /governed by the laws of the State of Arizona/i);
+  // The reward must never read as owed before installation.
+  assert.match(html, /earn a reward/);
+  assert.match(html, /progress indicators, not a promise of payment/);
+});
+
+// A-05: dashboard sections are bookmarkable. The static siblings must still win
+// over the new dynamic [section] segment.
+test("admin section routes gate on auth like /admin itself", async () => {
+  for (const path of ["/admin/referrals", "/admin/rewards", "/admin/emails"]) {
+    const response = await render(path);
+    assert.equal(response.status, 307, `${path} should redirect when unauthenticated`);
+    assert.match(response.headers.get("location") ?? "", /\/admin\/login\?/);
+  }
+});
+
+test("an unknown admin section 404s instead of silently showing Overview", async () => {
+  const response = await render("/admin/not-a-section");
+  assert.notEqual(response.status, 200);
+});
+
+test("/admin/login is not swallowed by the dynamic section route", async () => {
+  const response = await render("/admin/login");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  // The static route wins: the login form chunk loads, the dashboard's doesn't.
+  assert.match(html, /login-form-/);
+  assert.doesNotMatch(html, /admin-dashboard-/);
+});

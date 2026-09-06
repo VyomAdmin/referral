@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Brand } from "./brand";
 import { AddUserForm } from "./add-user-form";
 import { TotpEnrollmentForm } from "./totp-enrollment-form";
@@ -18,12 +18,16 @@ type IntegrationsStatus = {
 import { canMarkRewardPaid, searchReferrals, statusLabel } from "../lib/admin-rules";
 import { mintTrackerLinkAction } from "../lib/tracker-actions";
 import { markReferralPaidAction, retryHubSpotSyncsAction, retrySingleHubSpotSyncAction, updateCampaignAction, updateReferralContactAction } from "../lib/admin-actions";
-import { activateEmailTemplateAction, activateSmsTemplateAction, createEmailTemplateAction, createSmsTemplateAction, deleteEmailTemplateAction, deleteSmsTemplateAction, updateEmailTemplateAction, updateSmsTemplateAction } from "../lib/template-actions";
+import { REFERRER_EMAIL_EVENTS, activateEmailTemplateAction, activateSmsTemplateAction, createEmailTemplateAction, createSmsTemplateAction, deleteEmailTemplateAction, deleteSmsTemplateAction, updateEmailTemplateAction, updateSmsTemplateAction } from "../lib/template-actions";
 import type { CampaignEmailTemplate, CampaignSmsTemplate } from "../lib/campaign-templates";
 import { ADMIN_ROLES } from "../lib/roles";
 import { ThemeToggleIcon } from "./theme-toggle";
 
-type Section = "overview" | "referrals" | "campaigns" | "templates" | "rewards" | "emails" | "analytics" | "integrations" | "settings";
+// Exported so the /admin/[section] route can validate the URL segment against
+// the same list the nav renders — one source of truth for what a section is.
+export const ADMIN_SECTIONS = ["overview", "referrals", "campaigns", "templates", "rewards", "emails", "analytics", "integrations", "settings"] as const;
+export type AdminSection = (typeof ADMIN_SECTIONS)[number];
+type Section = AdminSection;
 
 const sections: { key: Section; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "⌂" },
@@ -55,7 +59,7 @@ function initials(name: string) {
   return name.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 }
 
-export function AdminDashboard({ currentUser, signOutAction, teamMembers, initialReferrals, initialCampaigns, initialEmailTemplates, initialSmsTemplates, integrationsStatus, referrerStats, emailEvents, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
+export function AdminDashboard({ initialSection, currentUser, signOutAction, teamMembers, initialReferrals, initialCampaigns, initialEmailTemplates, initialSmsTemplates, integrationsStatus, referrerStats, emailEvents, totpEnabled, totpSecret, totpQrCodeDataUrl }: {
   currentUser: { name: string; role: string };
   signOutAction: () => Promise<void>;
   teamMembers: TeamMember[];
@@ -63,6 +67,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
   initialCampaigns: AdminCampaign[];
   initialEmailTemplates: CampaignEmailTemplate[];
   initialSmsTemplates: CampaignSmsTemplate[];
+  initialSection?: AdminSection;
   integrationsStatus: IntegrationsStatus;
   referrerStats: AdminReferrerStats;
   emailEvents: AdminEmailEvent[];
@@ -70,7 +75,29 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
   totpSecret: string;
   totpQrCodeDataUrl: string;
 }) {
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSectionState] = useState<Section>(initialSection ?? "overview");
+
+  // Keep the address bar in step with the visible view so a section can be
+  // bookmarked or shared (audit A-05). pushState rather than a router
+  // navigation: the dashboard already holds all its data client-side, so a
+  // server round-trip per tab click would be a regression in responsiveness.
+  function setSection(next: Section) {
+    setSectionState(next);
+    if (typeof window !== "undefined") {
+      const path = next === "overview" ? "/admin" : `/admin/${next}`;
+      if (window.location.pathname !== path) window.history.pushState(null, "", path);
+    }
+  }
+
+  // Back/forward must move between views, not out of the dashboard.
+  useEffect(() => {
+    function onPopState() {
+      const segment = window.location.pathname.replace(/^\/admin\/?/, "");
+      setSectionState(ADMIN_SECTIONS.includes(segment as Section) ? (segment as Section) : "overview");
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
   const [query, setQuery] = useState("");
   const [stateFilter, setStateFilter] = useState("All states");
   const [statusFilter, setStatusFilter] = useState<"All statuses" | ReferralStatus>("All statuses");
@@ -165,7 +192,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
     return true;
   }
 
-  async function saveEmailTemplate(campaignId: string, existing: CampaignEmailTemplate | null, input: { name: string; subject: string; bodyHtml: string; bodyText: string }) {
+  async function saveEmailTemplate(campaignId: string, existing: CampaignEmailTemplate | null, input: { templateKey: string; name: string; subject: string; bodyHtml: string; bodyText: string }) {
     const result = existing
       ? await updateEmailTemplateAction(existing.id, input)
       : await createEmailTemplateAction({ campaignId, ...input });
@@ -175,7 +202,7 @@ export function AdminDashboard({ currentUser, signOutAction, teamMembers, initia
     return true;
   }
 
-  async function saveSmsTemplate(campaignId: string, existing: CampaignSmsTemplate | null, input: { name: string; body: string }) {
+  async function saveSmsTemplate(campaignId: string, existing: CampaignSmsTemplate | null, input: { templateKey: string; name: string; body: string }) {
     const result = existing
       ? await updateSmsTemplateAction(existing.id, input)
       : await createSmsTemplateAction({ campaignId, ...input });
@@ -504,8 +531,9 @@ function EmailTemplateDrawer({ campaignId, template, onClose, onSave }: {
   campaignId: string;
   template: CampaignEmailTemplate | null;
   onClose: () => void;
-  onSave: (campaignId: string, existing: CampaignEmailTemplate | null, input: { name: string; subject: string; bodyHtml: string; bodyText: string }) => void;
+  onSave: (campaignId: string, existing: CampaignEmailTemplate | null, input: { templateKey: string; name: string; subject: string; bodyHtml: string; bodyText: string }) => void;
 }) {
+  const [templateKey, setTemplateKey] = useState(template?.templateKey ?? "");
   const [name, setName] = useState(template?.name ?? "");
   const [subject, setSubject] = useState(template?.subject ?? "");
   const [bodyHtml, setBodyHtml] = useState(template?.bodyHtml ?? "");
@@ -515,7 +543,7 @@ function EmailTemplateDrawer({ campaignId, template, onClose, onSave }: {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
-    await onSave(campaignId, template, { name, subject, bodyHtml, bodyText });
+    await onSave(campaignId, template, { templateKey, name, subject, bodyHtml, bodyText });
     setSaving(false);
   }
 
@@ -525,6 +553,9 @@ function EmailTemplateDrawer({ campaignId, template, onClose, onSave }: {
       <aside className="referral-drawer">
         <header><div><span>EMAIL TEMPLATE</span><h2>{template ? "Edit template" : "New template"}</h2></div><button onClick={onClose} type="button">×</button></header>
         <form className="settings-panel-card admin-card" onSubmit={submit}>
+          {/* Which notification this replaces. Without it a template used to
+              override every referrer email at once. */}
+          <label>Replaces which email<select value={templateKey} onChange={(event) => setTemplateKey(event.target.value)} required><option value="">Choose an email…</option>{REFERRER_EMAIL_EVENTS.map((key) => <option key={key} value={key}>{key.replace(/_/g, " ")}</option>)}</select></label>
           <label>Internal name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="AZ referrer — spring promo" required /></label>
           <label>Subject<input value={subject} onChange={(event) => setSubject(event.target.value)} required /></label>
           <label>Body (HTML)<textarea value={bodyHtml} onChange={(event) => setBodyHtml(event.target.value)} rows={8} required /></label>
@@ -541,8 +572,9 @@ function SmsTemplateDrawer({ campaignId, template, onClose, onSave }: {
   campaignId: string;
   template: CampaignSmsTemplate | null;
   onClose: () => void;
-  onSave: (campaignId: string, existing: CampaignSmsTemplate | null, input: { name: string; body: string }) => void;
+  onSave: (campaignId: string, existing: CampaignSmsTemplate | null, input: { templateKey: string; name: string; body: string }) => void;
 }) {
+  const [templateKey, setTemplateKey] = useState(template?.templateKey ?? "");
   const [name, setName] = useState(template?.name ?? "");
   const [body, setBody] = useState(template?.body ?? "");
   const [saving, setSaving] = useState(false);
@@ -550,7 +582,7 @@ function SmsTemplateDrawer({ campaignId, template, onClose, onSave }: {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
-    await onSave(campaignId, template, { name, body });
+    await onSave(campaignId, template, { templateKey, name, body });
     setSaving(false);
   }
 
@@ -560,6 +592,7 @@ function SmsTemplateDrawer({ campaignId, template, onClose, onSave }: {
       <aside className="referral-drawer">
         <header><div><span>SMS TEMPLATE</span><h2>{template ? "Edit template" : "New template"}</h2></div><button onClick={onClose} type="button">×</button></header>
         <form className="settings-panel-card admin-card" onSubmit={submit}>
+          <label>Replaces which message<select value={templateKey} onChange={(event) => setTemplateKey(event.target.value)} required><option value="">Choose a message…</option>{REFERRER_EMAIL_EVENTS.map((key) => <option key={key} value={key}>{key.replace(/_/g, " ")}</option>)}</select></label>
           <label>Internal name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="AZ referrer — spring promo" required /></label>
           <label>Message<textarea value={body} onChange={(event) => setBody(event.target.value)} rows={5} required /></label>
           <p className="template-token-hint">Available tokens: <code>{EMAIL_TOKENS}</code> · {body.length} chars ({Math.ceil((body.length || 1) / 160)} segment{Math.ceil((body.length || 1) / 160) === 1 ? "" : "s"})</p>

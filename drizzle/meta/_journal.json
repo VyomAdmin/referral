@@ -71,6 +71,20 @@
       "when": 1788550616491,
       "tag": "0009_modern_obadiah_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788707861802,
+      "tag": "0010_large_sir_ram",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788708153774,
+      "tag": "0011_unique_karnak",
+      "breakpoints": true
     }
   ]
 }

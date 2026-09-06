@@ -689,3 +689,16 @@ form.settings-panel-card footer { display: flex; justify-content: flex-end; gap:
   .trust-signals, .call-now { margin-top: 20px; }
   .next-steps { margin: 24px 0; }
 }
+
+/* Referral program terms (/terms) — a plain, readable legal page. */
+.legal-page { max-width: 760px; padding: 40px 0 80px; }
+.legal-page h1 { margin: 12px 0 6px; font-size: clamp(32px, 4vw, 46px); letter-spacing: -1.6px; }
+.legal-meta { margin: 0 0 26px; color: var(--muted-2); font-size: 13px; }
+.legal-lede { color: var(--ink); font-size: 17px; line-height: 1.65; }
+.legal-page h2 { margin: 34px 0 10px; font-size: 19px; letter-spacing: -.4px; }
+.legal-page p, .legal-page li { color: var(--muted); font-size: 15px; line-height: 1.7; }
+.legal-page ul, .legal-page ol { padding-left: 22px; display: grid; gap: 8px; }
+.legal-page strong { color: var(--ink); }
+.legal-page a { color: var(--orange-light); font-weight: 600; }
+.legal-conditions li::marker { color: var(--orange); font-weight: 800; }
+.legal-footnote { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px !important; color: var(--muted-2) !important; }

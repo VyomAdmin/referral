@@ -25,16 +25,16 @@ export function emailTemplate(
   const templates: Record<EmailEvent, EmailTemplate> = {
     referrer_welcome: {
       subject: `${firstName}, your NuVision referral link is ready`,
-      preheader: "Share your link and track successful referrals in one place.",
+      preheader: `Earn $${campaign.referrerReward} for every completed installation you refer.`,
       heading: `Welcome, ${firstName}.`,
-      body: `Your personal referral link is ready. You can earn $${campaign.referrerReward} after each eligible installation is completed.`,
+      body: `Share your link with friends, family, or anyone who needs auto glass work in ${campaign.stateName}. You earn $${campaign.referrerReward} once a referred customer's installation is completed — not before. Track every referral's progress from your dashboard.`,
       buttonLabel: "View & share my link",
     },
     referral_received: {
       subject: "Your NuVision referral was received",
       preheader: "We have your referral and will keep you updated.",
       heading: "A referral just came in.",
-      body: `We received a new ${campaign.stateName} referral through your link. We’ll let you know as it progresses.`,
+      body: `Someone used your link to request ${campaign.stateName} auto glass service. We'll contact them shortly, and you'll hear from us at each stage. Your $${campaign.referrerReward} reward is confirmed once their installation is completed.`,
       buttonLabel: "Track my referrals",
     },
     appointment_scheduled: {
@@ -55,14 +55,14 @@ export function emailTemplate(
       subject: `You earned a $${campaign.referrerReward} referral reward`,
       preheader: "The referred installation is complete and your reward is eligible.",
       heading: "Your referral was successful.",
-      body: `The installation is complete, so your $${campaign.referrerReward} reward is now ready to process.`,
+      body: `The installation you referred is complete, so your $${campaign.referrerReward} reward is approved and queued for payment — normally within 30 days. Thank you for the recommendation.`,
       buttonLabel: "Track my reward",
     },
     reward_paid: {
       subject: "Your NuVision referral reward was paid",
       preheader: "Your reward has been processed.",
       heading: "Reward processed.",
-      body: `Your $${campaign.referrerReward} referral reward is marked paid. Thanks for spreading the word.`,
+      body: `Your $${campaign.referrerReward} referral reward has been paid. Thanks for trusting us with someone you know — your link stays active, so keep sharing it.`,
       buttonLabel: "View reward details",
     },
   };

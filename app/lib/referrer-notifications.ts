@@ -61,7 +61,7 @@ async function sendReferrerEmail(event: EmailEvent, referrer: NotifiableReferrer
   let text: string | undefined;
   let templateId: string | null = null;
 
-  const active = options.campaignId ? await getActiveCampaignEmailTemplate(options.campaignId) : null;
+  const active = options.campaignId ? await getActiveCampaignEmailTemplate(options.campaignId, event) : null;
   if (active) {
     subject = renderTemplate(active.subject, context);
     html = renderTemplate(active.bodyHtml, context);
@@ -92,7 +92,7 @@ async function sendReferrerSms(event: EmailEvent, referrer: NotifiableReferrer, 
   let body: string;
   let templateId: string | null = null;
 
-  const active = options.campaignId ? await getActiveCampaignSmsTemplate(options.campaignId) : null;
+  const active = options.campaignId ? await getActiveCampaignSmsTemplate(options.campaignId, event) : null;
   if (active) {
     body = renderTemplate(active.body, context);
     templateId = active.id;

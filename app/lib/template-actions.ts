@@ -22,13 +22,28 @@ async function assertCampaignInOrg(campaignId: string, organizationId: string) {
 
 export type TemplateActionResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
-export type EmailTemplateInput = { campaignId: string; name: string; subject: string; bodyHtml: string; bodyText?: string };
+// templateKey scopes a template to one notification. Required on create so a
+// template can never again silently override every referrer email.
+export const REFERRER_EMAIL_EVENTS = [
+  "referrer_welcome",
+  "referral_received",
+  "appointment_scheduled",
+  "installation_completed",
+  "reward_earned",
+  "reward_paid",
+] as const;
+export type ReferrerEmailEvent = (typeof REFERRER_EMAIL_EVENTS)[number];
+
+export type EmailTemplateInput = { campaignId: string; templateKey: string; name: string; subject: string; bodyHtml: string; bodyText?: string };
 
 export async function createEmailTemplateAction(input: EmailTemplateInput): Promise<TemplateActionResult<CampaignEmailTemplate>> {
   const session = await requireMarketingSession();
   if (!session) return { ok: false, error: "You don't have permission to manage message templates." };
   if (!input.name.trim() || !input.subject.trim() || !input.bodyHtml.trim()) {
     return { ok: false, error: "Enter a name, subject, and body." };
+  }
+  if (!REFERRER_EMAIL_EVENTS.includes(input.templateKey as ReferrerEmailEvent)) {
+    return { ok: false, error: "Choose which email this template replaces." };
   }
   if (!(await assertCampaignInOrg(input.campaignId, session.user.organizationId!))) {
     return { ok: false, error: "Campaign not found." };
@@ -37,6 +52,7 @@ export async function createEmailTemplateAction(input: EmailTemplateInput): Prom
   const [created] = await getDb().insert(campaignEmailTemplates).values({
     id: crypto.randomUUID(),
     campaignId: input.campaignId,
+    templateKey: input.templateKey,
     name: input.name.trim(),
     subject: input.subject.trim(),
     bodyHtml: input.bodyHtml,
@@ -56,8 +72,12 @@ export async function updateEmailTemplateAction(id: string, input: Omit<EmailTem
     return { ok: false, error: "Enter a name, subject, and body." };
   }
 
+  if (!REFERRER_EMAIL_EVENTS.includes(input.templateKey as ReferrerEmailEvent)) {
+    return { ok: false, error: "Choose which email this template replaces." };
+  }
+
   const [updated] = await getDb().update(campaignEmailTemplates)
-    .set({ name: input.name.trim(), subject: input.subject.trim(), bodyHtml: input.bodyHtml, bodyText: input.bodyText?.trim() || null, updatedBy: session.user.id ?? null, updatedAt: new Date() })
+    .set({ templateKey: input.templateKey, name: input.name.trim(), subject: input.subject.trim(), bodyHtml: input.bodyHtml, bodyText: input.bodyText?.trim() || null, updatedBy: session.user.id ?? null, updatedAt: new Date() })
     .where(eq(campaignEmailTemplates.id, id))
     .returning();
   if (!updated) return { ok: false, error: "Template not found." };
@@ -99,17 +119,19 @@ export async function deleteEmailTemplateAction(id: string): Promise<TemplateAct
   return { ok: true, value: null };
 }
 
-export type SmsTemplateInput = { campaignId: string; name: string; body: string };
+export type SmsTemplateInput = { campaignId: string; templateKey: string; name: string; body: string };
 
 export async function createSmsTemplateAction(input: SmsTemplateInput): Promise<TemplateActionResult<CampaignSmsTemplate>> {
   const session = await requireMarketingSession();
   if (!session) return { ok: false, error: "You don't have permission to manage message templates." };
   if (!input.name.trim() || !input.body.trim()) return { ok: false, error: "Enter a name and message body." };
+  if (!REFERRER_EMAIL_EVENTS.includes(input.templateKey as ReferrerEmailEvent)) return { ok: false, error: "Choose which message this template replaces." };
   if (!(await assertCampaignInOrg(input.campaignId, session.user.organizationId!))) return { ok: false, error: "Campaign not found." };
 
   const [created] = await getDb().insert(campaignSmsTemplates).values({
     id: crypto.randomUUID(),
     campaignId: input.campaignId,
+    templateKey: input.templateKey,
     name: input.name.trim(),
     body: input.body,
     createdBy: session.user.id ?? null,
@@ -124,9 +146,10 @@ export async function updateSmsTemplateAction(id: string, input: Omit<SmsTemplat
   const session = await requireMarketingSession();
   if (!session) return { ok: false, error: "You don't have permission to manage message templates." };
   if (!input.name.trim() || !input.body.trim()) return { ok: false, error: "Enter a name and message body." };
+  if (!REFERRER_EMAIL_EVENTS.includes(input.templateKey as ReferrerEmailEvent)) return { ok: false, error: "Choose which message this template replaces." };
 
   const [updated] = await getDb().update(campaignSmsTemplates)
-    .set({ name: input.name.trim(), body: input.body, updatedBy: session.user.id ?? null, updatedAt: new Date() })
+    .set({ templateKey: input.templateKey, name: input.name.trim(), body: input.body, updatedBy: session.user.id ?? null, updatedAt: new Date() })
     .where(eq(campaignSmsTemplates.id, id))
     .returning();
   if (!updated) return { ok: false, error: "Template not found." };

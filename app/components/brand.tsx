@@ -16,6 +16,12 @@ export const SUPPORT_PHONE_HREF = "tel:+18552130100";
 // Consent copy has to link to the actual policies for the consent to be
 // provable (cutover audit C-01); these live on the main site, not here.
 export const TERMS_URL = `${NUVISION_HOME_URL}terms-conditions/`;
+
+// The referral program's OWN terms, hosted here rather than on the main site:
+// they cover eligibility and reward conditions specific to this program, which
+// the main site's general terms don't. Restores the disclaimer the old Referral
+// Factory campaign carried (cutover audit C-05).
+export const PROGRAM_TERMS_URL = "/terms";
 export const PRIVACY_URL = `${NUVISION_HOME_URL}privacy-policy/`;
 
 // Verified service claims carried over from the main site, shown alongside the

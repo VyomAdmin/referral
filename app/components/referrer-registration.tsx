@@ -5,7 +5,8 @@ import Link from "next/link";
 import { isValidPhone } from "../lib/referral-rules";
 import { submitReferrerRegistrationAction } from "../lib/referrer-actions";
 import { pushGtmEvent } from "../lib/analytics";
-import { PRIVACY_URL, TERMS_URL } from "./brand";
+import { PRIVACY_URL, PROGRAM_TERMS_URL } from "./brand";
+import { referrerConsentSegments } from "../lib/consent";
 
 type Registration = {
   firstName: string;
@@ -14,7 +15,7 @@ type Registration = {
   phone: string;
 };
 
-type FieldErrors = Partial<Record<keyof Registration, string>>;
+type FieldErrors = Partial<Record<keyof Registration | "consent", string>>;
 
 const emptyRegistration: Registration = {
   firstName: "",
@@ -30,6 +31,7 @@ export function ReferrerRegistration() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [consent, setConsent] = useState(false);
 
   const link = useMemo(
     () => (result ? `${typeof window === "undefined" ? "https://referrals.nuvisionautoglass.com" : window.location.origin}/r/${result.code}` : ""),
@@ -55,13 +57,14 @@ export function ReferrerRegistration() {
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) errors.email = "That email address doesn't look right.";
     if (!form.phone.trim()) errors.phone = "Enter your mobile number.";
     else if (!isValidPhone(form.phone)) errors.phone = "Enter a 10-digit US mobile number.";
+    if (!consent) errors.consent = "Please agree to the Referral Program Terms to continue.";
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setError("Check the highlighted fields below.");
       return;
     }
     setFieldErrors({});
-    const outcome = await submitReferrerRegistrationAction(form);
+    const outcome = await submitReferrerRegistrationAction({ ...form, consent });
     if ("error" in outcome) {
       setError(outcome.error);
       return;
@@ -125,8 +128,23 @@ export function ReferrerRegistration() {
         {fieldErrors.phone ? <p className="field-error" id="signup-phone-error" role="alert">{fieldErrors.phone}</p> : null}
       </div>
       {error ? <p className="form-error field-wide" role="alert">{error}</p> : null}
+      {/* An affirmative tick, not passive "by continuing you agree" copy —
+          and the wording comes from the same constant the server stores
+          against the referrer, so the record can't drift from what was shown. */}
+      <div className="field field-wide">
+        <label className="consent-row" htmlFor="signup-consent">
+          <input id="signup-consent" name="consent" type="checkbox" checked={consent} onChange={(event) => { setConsent(event.target.checked); setFieldErrors((current) => { const next = { ...current }; delete next.consent; return next; }); }} required aria-invalid={Boolean(fieldErrors.consent)} />
+          <span>
+            {referrerConsentSegments().map((segment, index) =>
+              segment.type === "text"
+                ? <span key={index}>{segment.value}</span>
+                : <a key={index} href={segment.slot === "terms" ? PROGRAM_TERMS_URL : PRIVACY_URL} target="_blank" rel="noreferrer">{segment.label}</a>,
+            )}
+          </span>
+        </label>
+        {fieldErrors.consent ? <p className="field-error" role="alert">{fieldErrors.consent}</p> : null}
+      </div>
       <button className="button button-primary field-wide" type="submit">Create my link</button>
-      <p className="legal-copy field-wide">By continuing, you agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Program Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>, and consent to program emails and texts about your referrals. Message and data rates may apply; message frequency varies. Reply STOP to opt out.</p>
     </form>
   );
 }

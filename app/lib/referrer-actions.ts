@@ -5,13 +5,14 @@ import { referrers } from "../../db/schema.ts";
 import { getDefaultOrganizationId } from "./organization.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
 import { createReferralCode, isValidEmail, isValidPhone } from "./referral-rules.ts";
+import { referrerConsentText } from "./consent.ts";
 import { notifyReferrer } from "./referrer-notifications.ts";
 import { mintTrackerLinkAction } from "./tracker-actions.ts";
 
 const MAX_SIGNUPS_PER_WINDOW = 5;
 const SIGNUP_WINDOW_MINUTES = 10;
 
-export type ReferrerRegistrationInput = { firstName: string; lastName: string; email: string; phone: string };
+export type ReferrerRegistrationInput = { firstName: string; lastName: string; email: string; phone: string; consent?: boolean };
 
 export type ReferrerRegistrationResult = { code: string; firstName: string; trackPath: string } | { error: string };
 
@@ -24,6 +25,12 @@ export async function submitReferrerRegistrationAction(input: ReferrerRegistrati
   if (!firstName || !lastName || !isValidEmail(email) || !isValidPhone(phone)) {
     return { error: "Please complete every field with a valid email and a 10-digit mobile number." };
   }
+  // Checked server-side, not just in the browser: an unticked box that still
+  // creates a referrer would leave us with a payout obligation and no record
+  // of the terms being accepted.
+  if (!input.consent) {
+    return { error: "Please agree to the Referral Program Terms to continue." };
+  }
 
   const clientIp = await getClientIp();
   const withinLimit = await checkRateLimit(`referrer-signup:${clientIp}`, MAX_SIGNUPS_PER_WINDOW, SIGNUP_WINDOW_MINUTES);
@@ -35,7 +42,20 @@ export async function submitReferrerRegistrationAction(input: ReferrerRegistrati
   const code = createReferralCode(firstName, lastName, Date.now());
   const id = crypto.randomUUID();
 
-  await getDb().insert(referrers).values({ id, organizationId, code, firstName, lastName, email, phone, status: "active" });
+  await getDb().insert(referrers).values({
+    id,
+    organizationId,
+    code,
+    firstName,
+    lastName,
+    email,
+    phone,
+    status: "active",
+    // Consent evidence: when, from where, and the exact wording shown.
+    consentGivenAt: new Date(),
+    consentIp: clientIp,
+    consentText: referrerConsentText(),
+  });
 
   const trackPath = await mintTrackerLinkAction("referrer", { referrerId: id });
   notifyReferrer("referrer_welcome", { id, organizationId, firstName, lastName, email, phone, code }).catch(() => {});
