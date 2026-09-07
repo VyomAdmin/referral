@@ -4,6 +4,11 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrers } from "../../db/schema.ts";
 import { syncReferrerToHubSpot } from "./hubspot-sync.ts";
+
+// Postgres unique-violation SQLSTATE, surfaced by node-postgres as `code`.
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: string }).code === "23505";
+}
 import { getDefaultOrganizationId } from "./organization.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
 import { createReferralCode, isValidEmail, isValidPhone } from "./referral-rules.ts";
@@ -61,7 +66,28 @@ export async function submitReferrerRegistrationAction(input: ReferrerRegistrati
   const code = createReferralCode(firstName, lastName, Date.now());
   const id = crypto.randomUUID();
 
-  await db.insert(referrers).values({
+  // The pre-check above handles the ordinary case; this catches the race the
+  // referrer_org_email_idx index now rejects — two submits of the same form
+  // landing together. Recover the row that won instead of surfacing a 500.
+  try {
+    await insertReferrer();
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      const [winner] = await db
+        .select({ id: referrers.id, code: referrers.code, firstName: referrers.firstName })
+        .from(referrers)
+        .where(and(eq(referrers.organizationId, organizationId), eq(referrers.email, email)))
+        .limit(1);
+      if (winner) {
+        const trackPath = await mintTrackerLinkAction("referrer", { referrerId: winner.id });
+        return { code: winner.code, firstName: winner.firstName, trackPath, existing: true };
+      }
+    }
+    throw error;
+  }
+
+  async function insertReferrer() {
+    return db.insert(referrers).values({
     id,
     organizationId,
     code,
@@ -69,12 +95,13 @@ export async function submitReferrerRegistrationAction(input: ReferrerRegistrati
     lastName,
     email,
     phone,
-    status: "active",
-    // Consent evidence: when, from where, and the exact wording shown.
-    consentGivenAt: new Date(),
-    consentIp: clientIp,
-    consentText: referrerConsentText(),
-  });
+      status: "active",
+      // Consent evidence: when, from where, and the exact wording shown.
+      consentGivenAt: new Date(),
+      consentIp: clientIp,
+      consentText: referrerConsentText(),
+    });
+  }
 
   const trackPath = await mintTrackerLinkAction("referrer", { referrerId: id });
   notifyReferrer("referrer_welcome", { id, organizationId, firstName, lastName, email, phone, code }).catch(() => {});

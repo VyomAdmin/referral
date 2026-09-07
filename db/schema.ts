@@ -48,15 +48,15 @@ export const referrers = pgTable("referrers", {
   consentIp: text("consent_ip"),
   consentText: text("consent_text"),
   ...timestamps,
-}, (table) => [uniqueIndex("referrer_org_code_idx").on(table.organizationId, table.code)]);
-// NOTE: there is deliberately NO unique index on (organizationId, email) yet.
-// Production already holds duplicate referrer emails from testing (22 rows for
-// 14 people), so creating one would fail `npm run db:migrate` — which
-// scripts/start.sh runs *before* `npm start`, taking the service down rather
-// than just skipping the migration. Dedupe the existing rows first (repoint
-// referrals to the earliest row per email, then delete the later ones), then
-// add the index. Until then submitReferrerRegistrationAction is the guard,
-// which closes the real-world path; only a concurrent double-submit slips past.
+}, (table) => [
+  uniqueIndex("referrer_org_code_idx").on(table.organizationId, table.code),
+  // One referrer row per email. submitReferrerRegistrationAction checks this
+  // first and returns the existing code; the index is what stops a concurrent
+  // double-submit from minting two codes for one person and splitting their
+  // attribution. Migration 0012 renamed the pre-existing duplicates before
+  // adding it — see that file.
+  uniqueIndex("referrer_org_email_idx").on(table.organizationId, table.email),
+]);
 
 export const referrals = pgTable("referrals", {
   id: text("id").primaryKey(),
