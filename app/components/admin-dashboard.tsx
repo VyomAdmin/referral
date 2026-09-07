@@ -5,6 +5,7 @@ import { Brand } from "./brand";
 import { AddUserForm } from "./add-user-form";
 import { TotpEnrollmentForm } from "./totp-enrollment-form";
 import { AdminReferral, ReferralStatus } from "../lib/admin-data";
+import { ADMIN_SECTIONS, type AdminSection } from "../lib/admin-sections";
 import type { AdminCampaign, AdminEmailEvent, AdminReferrerStats } from "../lib/admin-queries";
 
 type IntegrationsStatus = {
@@ -23,10 +24,6 @@ import type { CampaignEmailTemplate, CampaignSmsTemplate } from "../lib/campaign
 import { ADMIN_ROLES } from "../lib/roles";
 import { ThemeToggleIcon } from "./theme-toggle";
 
-// Exported so the /admin/[section] route can validate the URL segment against
-// the same list the nav renders — one source of truth for what a section is.
-export const ADMIN_SECTIONS = ["overview", "referrals", "campaigns", "templates", "rewards", "emails", "analytics", "integrations", "settings"] as const;
-export type AdminSection = (typeof ADMIN_SECTIONS)[number];
 type Section = AdminSection;
 
 const sections: { key: Section; label: string; icon: string }[] = [

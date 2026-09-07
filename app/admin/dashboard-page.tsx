@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { teamMembers, users } from "../../db/schema.ts";
 import { AdminDashboard } from "../components/admin-dashboard";
-import type { AdminSection } from "../components/admin-dashboard";
+import type { AdminSection } from "../lib/admin-sections";
 import { auth, requireRole, signOut } from "../lib/auth";
 import { ADMIN_ROLES } from "../lib/roles";
 import { generateTotpSecret, totpEnrollmentQrCode } from "../lib/totp";

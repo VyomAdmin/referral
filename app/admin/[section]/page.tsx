@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AdminDashboardPage } from "../dashboard-page";
-import { ADMIN_SECTIONS, type AdminSection } from "../../components/admin-dashboard";
+import { ADMIN_SECTIONS, type AdminSection } from "../../lib/admin-sections";
 
 export const metadata = { title: "Referral operations" };
 
@@ -12,5 +12,5 @@ export const metadata = { title: "Referral operations" };
 export default async function AdminSectionPage({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;
   if (!ADMIN_SECTIONS.includes(section as AdminSection)) notFound();
-  return AdminDashboardPage({ initialSection: section as AdminSection });
+  return <AdminDashboardPage initialSection={section as AdminSection} />;
 }
