@@ -8,7 +8,7 @@ import { submitCustomerReferralAction } from "../lib/referral-actions";
 import { recordNonServiceableZipAction } from "../lib/service-area-actions";
 import { INSURANCE_PROVIDERS, isServiceableZipPrefix } from "../lib/service-area";
 import { pushGtmEvent } from "../lib/analytics";
-import { PRIVACY_URL, SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_HREF, TERMS_URL, TRUST_SIGNALS } from "./brand";
+import { NUVISION_QUOTE_URL, PRIVACY_URL, PROGRAM_TERMS_URL, SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_HREF, TRUST_SIGNALS } from "./brand";
 
 type Lead = {
   name: string;
@@ -42,7 +42,6 @@ function validateLead(lead: Lead, consent: boolean): FieldErrors {
     errors.year = `Choose a year between ${VEHICLE_YEAR_RANGE[0]} and ${VEHICLE_YEAR_RANGE[1]}.`;
   }
   if (!lead.model.trim()) errors.model = "Choose your vehicle's model.";
-  if (!lead.insurance) errors.insurance = "Choose your insurance provider.";
   if (!consent) errors.consent = "Please agree to the program terms to continue.";
   return errors;
 }
@@ -232,11 +231,26 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
         ) : null}
 
         {unsupported ? (
+          /* Not a dead end. NuVision services four states but the referral
+             bonus only runs in two, so an out-of-area ZIP is still a real
+             customer who needs glass work — previously they got "we're not in
+             that area yet" and nowhere to go. Say plainly that the bonus isn't
+             available, then hand them the normal quote path. */
           <div className="unsupported-state">
             <span className="state-icon">⌖</span>
-            <h2>We&apos;re not in that area yet.</h2>
-            <p>NuVision&apos;s referral program is currently available in Arizona and Florida.</p>
-            <button className="button button-secondary" type="button" onClick={() => { setUnsupported(false); setZip(""); }}>Try another ZIP</button>
+            <h2>The referral bonus isn&apos;t available in your area yet.</h2>
+            <p>
+              The referral program currently runs in Arizona and Florida, so we can&apos;t attach the $50 bonus to a
+              job at {zip}. NuVision may still be able to fit your glass — get a free quote and we&apos;ll tell you
+              straight away whether we cover you.
+            </p>
+            <div className="unsupported-actions">
+              <a className="button button-primary" href={NUVISION_QUOTE_URL}>Get a free quote</a>
+              <button className="button button-secondary" type="button" onClick={() => { setUnsupported(false); setZip(""); }}>Try another ZIP</button>
+            </div>
+            <p className="unsupported-call">
+              Or call <a href={SUPPORT_PHONE_HREF}>{SUPPORT_PHONE_DISPLAY}</a> and we&apos;ll check coverage for you.
+            </p>
           </div>
         ) : null}
 
@@ -303,9 +317,9 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
                 {fieldErrors.model ? <p className="field-error" id="lead-model-error" role="alert">{fieldErrors.model}</p> : null}
               </div>
               <div className="field">
-                <label htmlFor="lead-insurance">Insurance provider</label>
-                <select id="lead-insurance" name="insuranceProvider" value={lead.insurance} onChange={(event) => update("insurance", event.target.value)} required aria-invalid={Boolean(fieldErrors.insurance)} aria-describedby={fieldErrors.insurance ? "lead-insurance-error" : undefined}>
-                  <option value="">Select one</option>
+                <label htmlFor="lead-insurance">Insurance provider <span className="field-optional">optional</span></label>
+                <select id="lead-insurance" name="insuranceProvider" value={lead.insurance} onChange={(event) => update("insurance", event.target.value)} aria-invalid={Boolean(fieldErrors.insurance)} aria-describedby={fieldErrors.insurance ? "lead-insurance-error" : undefined}>
+                  <option value="">Leave blank for cash payment</option>
                   {INSURANCE_PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
                 </select>
                 {fieldErrors.insurance ? <p className="field-error" id="lead-insurance-error" role="alert">{fieldErrors.insurance}</p> : null}
@@ -316,7 +330,7 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
               <label className="consent-row" htmlFor="lead-consent">
                 <input id="lead-consent" name="consent" type="checkbox" checked={consent} onChange={(event) => { setConsent(event.target.checked); setFieldErrors((current) => { const next = { ...current }; delete next.consent; return next; }); }} required aria-invalid={Boolean(fieldErrors.consent)} />
                 <span>
-                  I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Program Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>, and consent to service calls, texts and emails about this request. Message and data rates may apply; message frequency varies. Reply STOP to opt out.
+                  I agree to the <a href={PROGRAM_TERMS_URL} target="_blank" rel="noreferrer">Program Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a>, and consent to service calls, texts and emails about this request. Message and data rates may apply; message frequency varies. Reply STOP to opt out.
                 </span>
               </label>
               {fieldErrors.consent ? <p className="field-error" role="alert">{fieldErrors.consent}</p> : null}

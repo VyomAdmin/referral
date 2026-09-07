@@ -22,6 +22,8 @@ export type NotifyReferrerOptions = {
   campaignId?: string;
   campaign?: StateCampaign;
   referralId?: string;
+  // Physical address for the CAN-SPAM footer, when the org has one on file.
+  postalAddress?: string | null;
 };
 
 // Both AZ and FL currently pay the same $50 referrer reward, so this is a
@@ -30,29 +32,89 @@ export type NotifyReferrerOptions = {
 // for that event; stateName/customerOffer aren't referenced.
 const FALLBACK_CAMPAIGN = supportedCampaigns[0];
 
-async function resolveReferralLink(organizationId: string, code: string): Promise<string> {
+async function resolveDomain(organizationId: string): Promise<string> {
   const [org] = await getDb().select({ referralDomain: organizations.referralDomain }).from(organizations).where(eq(organizations.id, organizationId)).limit(1);
-  const domain = org?.referralDomain ?? "referrals.nuvisionautoglass.com";
-  return `https://${domain}/r/${code}`;
+  return org?.referralDomain ?? "referrals.nuvisionautoglass.com";
 }
 
-function buildContext(referrer: NotifiableReferrer, campaign: StateCampaign, referralLink: string): PersonalizationContext {
+// Which link each referrer email should open. Only the welcome email is about
+// sharing; the rest are status updates and belong on the tracker.
+//
+// Every one of these used to open the referral link, because the HTML builder
+// took a single `referralLink`. So "Track my referrals" and "View reward
+// details" both landed the referrer on /r/<code> — the page their *friend* is
+// meant to fill in. A referrer following their own email could submit
+// themselves as their own referred customer.
+const EVENT_DESTINATION: Record<EmailEvent, "referral" | "tracker"> = {
+  referrer_welcome: "referral",
+  referral_received: "tracker",
+  appointment_scheduled: "tracker",
+  installation_completed: "tracker",
+  reward_earned: "tracker",
+  reward_paid: "tracker",
+};
+
+function buildContext(referrer: NotifiableReferrer, campaign: StateCampaign, referralLink: string, trackerLink: string): PersonalizationContext {
   return {
     first_name: referrer.firstName,
     referrer_name: `${referrer.firstName} ${referrer.lastName}`.trim(),
     referral_link: referralLink,
+    tracker_link: trackerLink,
     campaign_name: campaign.campaignName,
     state_name: campaign.stateName,
     reward_amount: String(campaign.referrerReward),
   };
 }
 
-function legacyEmailHtml(template: EmailTemplate, referralLink: string): string {
-  return `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-    <h1 style="font-size:22px;color:#00568c">${template.heading}</h1>
-    <p style="font-size:15px;line-height:1.5;color:#1e293b">${template.body}</p>
-    <a href="${referralLink}" style="display:inline-block;margin-top:16px;padding:12px 22px;background:#00568c;color:#fff;text-decoration:none;border-radius:8px;font-weight:700">${template.buttonLabel}</a>
+// "sans-serif" alone is not a font stack: several clients resolve a bare
+// generic family unpredictably, which is why one template's heading rendered
+// in monospace. Name real faces and keep the generic as the last resort.
+const EMAIL_FONT = "Arial, Helvetica, sans-serif";
+
+// CAN-SPAM identification: a transactional message still has to say who sent
+// it and where they are. Physical address comes from the org row when set.
+function emailFooterHtml(postalAddress: string | null): string {
+  return `<div style="margin-top:28px;padding-top:16px;border-top:1px solid #e2e8f0;font-family:${EMAIL_FONT};font-size:12px;line-height:1.5;color:#64748b">
+    <img src="https://referrals.nuvisionautoglass.com/nuvision-wordmark-color.png" alt="NuVision Auto Glass" width="120" style="display:block;margin-bottom:10px" />
+    <p style="margin:0 0 6px">NuVision Auto Glass${postalAddress ? ` &middot; ${postalAddress}` : ""}</p>
+    <p style="margin:0 0 6px">You are receiving this because you joined the NuVision referral program.</p>
+    <p style="margin:0"><a href="https://referrals.nuvisionautoglass.com/terms" style="color:#64748b">Referral Program Terms</a> &middot; <a href="${NUVISION_PRIVACY_URL}" style="color:#64748b">Privacy Policy</a></p>
   </div>`;
+}
+
+const NUVISION_PRIVACY_URL = "https://www.nuvisionautoglass.com/privacy-policy/";
+
+function legacyEmailHtml(template: EmailTemplate, ctaUrl: string, referralLink: string, postalAddress: string | null): string {
+  return `<div style="font-family:${EMAIL_FONT};max-width:480px;margin:0 auto">
+    <h1 style="font-family:${EMAIL_FONT};font-size:22px;color:#00568c">${template.heading}</h1>
+    <p style="font-family:${EMAIL_FONT};font-size:15px;line-height:1.5;color:#1e293b">${template.body}</p>
+    <a href="${ctaUrl}" style="display:inline-block;margin-top:16px;padding:12px 22px;background:#00568c;color:#fff;text-decoration:none;border-radius:8px;font-family:${EMAIL_FONT};font-weight:700">${template.buttonLabel}</a>
+    <p style="font-family:${EMAIL_FONT};font-size:13px;line-height:1.6;color:#475569;margin-top:18px">
+      Your referral link, to copy and share:<br />
+      <span style="color:#00568c;word-break:break-all">${referralLink}</span>
+    </p>
+    ${emailFooterHtml(postalAddress)}
+  </div>`;
+}
+
+// A text/plain alternative, so the link survives clients that strip HTML and so
+// the message isn't a single HTML part (which hurts deliverability).
+function legacyEmailText(template: EmailTemplate, ctaUrl: string, referralLink: string, postalAddress: string | null): string {
+  return [
+    template.heading,
+    "",
+    template.body,
+    "",
+    `${template.buttonLabel}: ${ctaUrl}`,
+    "",
+    `Your referral link, to copy and share: ${referralLink}`,
+    "",
+    "---",
+    `NuVision Auto Glass${postalAddress ? ` - ${postalAddress}` : ""}`,
+    "You are receiving this because you joined the NuVision referral program.",
+    "Referral Program Terms: https://referrals.nuvisionautoglass.com/terms",
+    `Privacy Policy: ${NUVISION_PRIVACY_URL}`,
+  ].join("\n");
 }
 
 async function sendReferrerEmail(event: EmailEvent, referrer: NotifiableReferrer, options: NotifyReferrerOptions, context: PersonalizationContext, campaign: StateCampaign) {
@@ -69,8 +131,10 @@ async function sendReferrerEmail(event: EmailEvent, referrer: NotifiableReferrer
     templateId = active.id;
   } else {
     const legacy = emailTemplate(event, referrer.firstName, campaign);
+    const ctaUrl = EVENT_DESTINATION[event] === "tracker" ? context.tracker_link : context.referral_link;
     subject = legacy.subject;
-    html = legacyEmailHtml(legacy, context.referral_link);
+    html = legacyEmailHtml(legacy, ctaUrl, context.referral_link, options.postalAddress ?? null);
+    text = legacyEmailText(legacy, ctaUrl, context.referral_link, options.postalAddress ?? null);
   }
 
   const result = await sendEmail({ to: referrer.email, subject, html, text, tag: event });
@@ -97,7 +161,7 @@ async function sendReferrerSms(event: EmailEvent, referrer: NotifiableReferrer, 
     body = renderTemplate(active.body, context);
     templateId = active.id;
   } else {
-    body = smsTemplate(event, referrer.firstName, campaign);
+    body = smsTemplate(event, referrer.firstName, campaign, { referralLink: context.referral_link, trackerLink: context.tracker_link });
   }
 
   const result = await sendSms({ to: referrer.phone, body, from: twilioFromNumberForState(campaign.state) });
@@ -121,8 +185,12 @@ async function sendReferrerSms(event: EmailEvent, referrer: NotifiableReferrer, 
 export async function notifyReferrer(event: EmailEvent, referrer: NotifiableReferrer, options: NotifyReferrerOptions = {}) {
   try {
     const campaign = options.campaign ?? FALLBACK_CAMPAIGN;
-    const referralLink = await resolveReferralLink(referrer.organizationId, referrer.code);
-    const context = buildContext(referrer, campaign, referralLink);
+    const domain = await resolveDomain(referrer.organizationId);
+    const referralLink = `https://${domain}/r/${referrer.code}`;
+    // The lookup page, not a minted token: a long-lived signed tracker URL sitting
+    // in an inbox is a standing credential, and /track re-verifies identity.
+    const trackerLink = `https://${domain}/track`;
+    const context = buildContext(referrer, campaign, referralLink, trackerLink);
 
     await Promise.all([
       sendReferrerEmail(event, referrer, options, context, campaign),

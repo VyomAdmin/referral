@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BrandWordmark, GENERIC_REFERRAL_CODE, HeaderBrand, PublicHeader } from "./components/brand";
+import { BrandWordmark, GENERIC_REFERRAL_CODE, HeaderBrand, PROGRAM_TERMS_URL, PublicHeader } from "./components/brand";
 import { ReferrerRegistration } from "./components/referrer-registration";
 
 export const metadata = {
@@ -47,6 +47,22 @@ export default function Home() {
             <span className="step-kicker">STEP 1 OF 1</span>
             <h2>Create your referral link</h2>
             <p>Tell us where to send your link and tracking access.</p>
+          </div>
+          {/* The two things the old Referral Factory page said and this site
+              didn't: how the $50 actually reaches you, and the rule that decides
+              whether you get it. The link rule is the single most common
+              referral dispute — a friend calls the office directly, the job
+              happens, and the referrer asks where their $50 is. It has to be in
+              front of the person it applies to, not only in /terms. */}
+          <div className="reward-detail">
+            <p className="reward-detail-lead">
+              Get <strong>$50 as an Amazon, Walmart, Target or Starbucks voucher</strong> — or straight to your bank.
+            </p>
+            <p className="reward-detail-note">Florida: voucher only.</p>
+            <p className="reward-detail-rule">
+              Your friend must book through your link. If they contact us directly, the reward doesn&apos;t apply.{" "}
+              <Link href={PROGRAM_TERMS_URL}>Full terms</Link>
+            </p>
           </div>
           <ReferrerRegistration />
         </div>

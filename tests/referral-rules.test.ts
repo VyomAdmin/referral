@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { campaignForZip, createReferralCode, isValidEmail, isValidPhone, normalizeVehicleText, stateName } from "../app/lib/referral-rules.ts";
+import { campaignForZip, createReferralCode, isSelfReferral, isValidEmail, isValidPhone, normalizeVehicleText, stateName } from "../app/lib/referral-rules.ts";
 
 test("routes Arizona ZIP codes to the Arizona offer", () => {
   const campaign = campaignForZip("85001");
@@ -89,4 +89,18 @@ test("normalizeVehicleText canonicalises known model spellings", () => {
 test("normalizeVehicleText leaves an empty value empty", () => {
   assert.equal(normalizeVehicleText(""), "");
   assert.equal(normalizeVehicleText("   "), "");
+});
+
+// B-08: a referrer must not be able to submit themselves as their own referred
+// customer. Reachable by accident — every status email used to point "Track my
+// referrals" at /r/<code>, the friend's form.
+test("isSelfReferral catches a referrer using their own link", () => {
+  const referrer = { email: "Sam@Example.com", phone: "(602) 555-0099" };
+  assert.equal(isSelfReferral(referrer, { email: "sam@example.com", phone: "6025550001" }), true, "same email");
+  assert.equal(isSelfReferral(referrer, { email: "friend@example.com", phone: "602-555-0099" }), true, "same phone, different formatting");
+  assert.equal(isSelfReferral(referrer, { email: "friend@example.com", phone: "6025550001" }), false, "a genuine friend");
+});
+
+test("isSelfReferral does not match two people who both left the phone blank", () => {
+  assert.equal(isSelfReferral({ email: "sam@example.com", phone: "" }, { email: "friend@example.com", phone: "" }), false);
 });

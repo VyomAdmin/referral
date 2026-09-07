@@ -36,6 +36,39 @@ export async function resolveDealFields(candidates: { property: string; value: s
   return { properties, notes: notesLines.join("\n") };
 }
 
+// Puts the referrer into HubSpot at signup. Previously a referrer only got a
+// contact record inside syncReferralToHubSpot, so anyone who joined and never
+// referred a friend never reached HubSpot at all — the audit's "no referrer
+// contact is created" finding. Best-effort and idempotent: reuses an existing
+// contact when one matches, and records the id so later referrals reuse it.
+export async function syncReferrerToHubSpot(referrerId: string) {
+  const db = getDb();
+  const [referrer] = await db
+    .select({ id: referrers.id, code: referrers.code, firstName: referrers.firstName, lastName: referrers.lastName, email: referrers.email, phone: referrers.phone, hubspotContactId: referrers.hubspotContactId })
+    .from(referrers)
+    .where(eq(referrers.id, referrerId))
+    .limit(1);
+  if (!referrer || referrer.hubspotContactId) return;
+
+  try {
+    const contactId =
+      (await findContactByEmailOrPhone(referrer.email, referrer.phone)) ??
+      (await createContact({
+        firstName: referrer.firstName,
+        lastName: referrer.lastName,
+        email: referrer.email,
+        phone: referrer.phone,
+        leadSource: LEAD_SOURCE,
+        secondaryLeadSource: SECONDARY_LEAD_SOURCE,
+        referralCode: referrer.code,
+      }));
+    await db.update(referrers).set({ hubspotContactId: contactId }).where(eq(referrers.id, referrer.id));
+  } catch (error) {
+    // Never fails the signup — the referral-time sync retries this.
+    console.error(`[hubspot-sync] failed to sync referrer ${referrerId}:`, error);
+  }
+}
+
 export async function syncReferralToHubSpot(referralId: string) {
   const db = getDb();
   const [referral] = await db.select().from(referrals).where(eq(referrals.id, referralId)).limit(1);
@@ -65,6 +98,10 @@ export async function syncReferralToHubSpot(referralId: string) {
         leadSource: LEAD_SOURCE,
         secondaryLeadSource: SECONDARY_LEAD_SOURCE,
         referralCode: referralCode,
+        // Attribution lives on the contact: these properties don't exist on deals.
+        referredByName: referrer ? `${referrer.firstName} ${referrer.lastName}`.trim() : undefined,
+        referredByEmail: referrer?.email,
+        referredByPhone: referrer?.phone,
       }));
 
     if (contactId !== referral.hubspotContactId) {
@@ -109,9 +146,6 @@ export async function syncReferralToHubSpot(referralId: string) {
       leadSource: LEAD_SOURCE,
       secondaryLeadSource: SECONDARY_LEAD_SOURCE,
       referralCode: referralCode,
-      referredByName: referrer ? `${referrer.firstName} ${referrer.lastName}`.trim() : "",
-      referredByEmail: referrer?.email ?? "",
-      referredByPhone: referrer?.phone ?? "",
       contactPhone: referral.customerPhone,
       extraProperties: dealFieldProperties,
       installNotes: installNotes || undefined,

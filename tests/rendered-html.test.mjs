@@ -180,3 +180,31 @@ test("/admin/login is not swallowed by the dynamic section route", async () => {
   assert.match(html, /login-form-/);
   assert.doesNotMatch(html, /admin-dashboard-/);
 });
+
+// GTM scoping: the shared main-site container pulled 19 third-party hosts onto
+// the referral subdomain, including Microsoft Clarity session-recording a form
+// that collects name, email, phone and insurance. GA4 loads directly instead.
+test("the referral pages load GA4 directly, not the main site's GTM container", async () => {
+  const response = await render("/");
+  const html = await response.text();
+  assert.match(html, /gtag\/js\?id=G-SSJ8CWLWZ8/);
+  assert.doesNotMatch(html, /GTM-5HRL52B/);
+  assert.doesNotMatch(html, /googletagmanager\.com\/gtm\.js/);
+});
+
+// The reward-naming and eligibility gaps from the cutover audit.
+test("the signup page names the payout method and the booking rule", async () => {
+  const response = await render("/");
+  const html = await response.text();
+  assert.match(html, /Amazon, Walmart, Target or Starbucks voucher/);
+  assert.match(html, /straight to your bank/);
+  assert.match(html, /Florida: voucher only/);
+  assert.match(html, /must book through your link/);
+});
+
+// C-06: the root layout already appends "| NuVision Referrals".
+test("the demo page title is not doubled", async () => {
+  const response = await render("/demo");
+  const html = await response.text();
+  assert.match(html, /<title>Demo Tour \| NuVision Referrals<\/title>/);
+});

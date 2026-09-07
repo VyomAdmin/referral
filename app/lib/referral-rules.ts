@@ -7,6 +7,11 @@ export type StateCampaign = {
   serviceMessage: string;
   customerOffer: string | null;
   referrerReward: number;
+  // How the referrer actually gets paid. The old Referral Factory page said
+  // this and the new site didn't — "$50" is a number, "$50 as an Amazon card
+  // or straight to your bank" is something a person can picture. Florida is
+  // voucher-only, so this can't be one shared string.
+  rewardMethods: string;
   accent: "blue" | "sun" | "ocean" | "mountain";
 };
 
@@ -18,6 +23,7 @@ const campaigns: Record<StateCampaign["state"], StateCampaign> = {
     serviceMessage: "Same-day mobile windshield replacement across Arizona.",
     customerOffer: "$50 additional cash back with insurance or $50 off a cash payment.",
     referrerReward: 50,
+    rewardMethods: "as an Amazon, Walmart, Target or Starbucks voucher — or straight to your bank by ACH, PayPal or Venmo",
     accent: "sun",
   },
   FL: {
@@ -27,6 +33,7 @@ const campaigns: Record<StateCampaign["state"], StateCampaign> = {
     serviceMessage: "Trusted mobile windshield service throughout Florida.",
     customerOffer: null,
     referrerReward: 50,
+    rewardMethods: "as an Amazon, Walmart, Target or Starbucks voucher",
     accent: "ocean",
   },
 };
@@ -141,4 +148,22 @@ export function normalizeVehicleText(value: string) {
         .join("-");
     })
     .join(" ");
+}
+
+// True when a referred customer is really the referrer. Matched on email OR on
+// phone digits, since either identifies the same person and only one of them
+// may have been retyped.
+//
+// This is reachable by accident, not just by fraud: every referrer status email
+// used to point "Track my referrals" at /r/<code>, so a referrer following
+// their own email landed on the form their friend is meant to fill in.
+export function isSelfReferral(
+  referrer: { email: string; phone: string },
+  customer: { email: string; phone: string },
+): boolean {
+  const sameEmail = referrer.email.trim().toLowerCase() === customer.email.trim().toLowerCase();
+  const referrerDigits = referrer.phone.replace(/\D/g, "");
+  const customerDigits = customer.phone.replace(/\D/g, "");
+  const samePhone = referrerDigits.length > 0 && referrerDigits === customerDigits;
+  return sameEmail || samePhone;
 }

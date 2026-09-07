@@ -702,3 +702,21 @@ form.settings-panel-card footer { display: flex; justify-content: flex-end; gap:
 .legal-page a { color: var(--orange-light); font-weight: 600; }
 .legal-conditions li::marker { color: var(--orange); font-weight: 800; }
 .legal-footnote { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px !important; color: var(--muted-2) !important; }
+
+/* Reward detail + eligibility rule on the signup card (cutover audit C-05 and
+   the reward-naming gap): the two things the old Referral Factory page said
+   that this site didn't. */
+.reward-detail { margin: 4px 0 2px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-soft); }
+.reward-detail-lead { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; }
+.reward-detail-lead strong { color: var(--orange-light); }
+.reward-detail-note { margin: 6px 0 0; color: var(--muted-2); font-size: 12px; font-weight: 650; }
+.reward-detail-rule { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.5; }
+.reward-detail-rule a { color: var(--orange-light); font-weight: 700; }
+
+/* R-10: insurance is optional here, matching the main site's quote form. */
+.field-optional { margin-left: 6px; color: var(--muted-2); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+
+/* Out-of-area ZIP is a lead, not a dead end. */
+.unsupported-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; }
+.unsupported-call { margin: 14px 0 0; color: var(--muted); font-size: 13px; }
+.unsupported-call a { color: var(--orange-light); font-weight: 700; }

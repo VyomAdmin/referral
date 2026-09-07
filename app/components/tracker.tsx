@@ -16,7 +16,7 @@ export function TrackerHeader({ label }: { label: string }) {
         <div className="tracker-header-actions">
           <span>{label}</span>
           <Link href="/track">Find another link</Link>
-          <Link href="/">Sign out</Link>
+          <Link href="/">Done</Link>
         </div>
       </div>
     </header>

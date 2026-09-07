@@ -1,7 +1,9 @@
 "use server";
 
+import { and, eq } from "drizzle-orm";
 import { getDb } from "../../db/index.ts";
 import { referrers } from "../../db/schema.ts";
+import { syncReferrerToHubSpot } from "./hubspot-sync.ts";
 import { getDefaultOrganizationId } from "./organization.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
 import { createReferralCode, isValidEmail, isValidPhone } from "./referral-rules.ts";
@@ -14,7 +16,7 @@ const SIGNUP_WINDOW_MINUTES = 10;
 
 export type ReferrerRegistrationInput = { firstName: string; lastName: string; email: string; phone: string; consent?: boolean };
 
-export type ReferrerRegistrationResult = { code: string; firstName: string; trackPath: string } | { error: string };
+export type ReferrerRegistrationResult = { code: string; firstName: string; trackPath: string; existing?: boolean } | { error: string };
 
 export async function submitReferrerRegistrationAction(input: ReferrerRegistrationInput): Promise<ReferrerRegistrationResult> {
   const firstName = input.firstName.trim();
@@ -39,10 +41,27 @@ export async function submitReferrerRegistrationAction(input: ReferrerRegistrati
   }
 
   const organizationId = await getDefaultOrganizationId();
+  const db = getDb();
+
+  // One person, one referral code. Without this, signing up twice minted a
+  // second code for the same email — so they might share code A while their
+  // friend's referral lands on code B, splitting attribution and the payout.
+  // Returning the existing code is also the friendlier behaviour: someone who
+  // forgot they'd joined just gets their link back.
+  const [existing] = await db
+    .select({ id: referrers.id, code: referrers.code, firstName: referrers.firstName })
+    .from(referrers)
+    .where(and(eq(referrers.organizationId, organizationId), eq(referrers.email, email)))
+    .limit(1);
+  if (existing) {
+    const trackPath = await mintTrackerLinkAction("referrer", { referrerId: existing.id });
+    return { code: existing.code, firstName: existing.firstName, trackPath, existing: true };
+  }
+
   const code = createReferralCode(firstName, lastName, Date.now());
   const id = crypto.randomUUID();
 
-  await getDb().insert(referrers).values({
+  await db.insert(referrers).values({
     id,
     organizationId,
     code,
@@ -59,5 +78,7 @@ export async function submitReferrerRegistrationAction(input: ReferrerRegistrati
 
   const trackPath = await mintTrackerLinkAction("referrer", { referrerId: id });
   notifyReferrer("referrer_welcome", { id, organizationId, firstName, lastName, email, phone, code }).catch(() => {});
+  // Best-effort: a HubSpot outage must not fail the signup.
+  syncReferrerToHubSpot(id).catch(() => {});
   return { code, firstName, trackPath };
 }

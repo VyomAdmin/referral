@@ -7,7 +7,7 @@ import { getDefaultOrganizationId } from "./organization.ts";
 import { getOrCreateCampaignId } from "./campaign-directory.ts";
 import { syncReferralToHubSpot } from "./hubspot-sync.ts";
 import { checkRateLimit, getClientIp } from "./rate-limit.ts";
-import { campaignForZip, isValidEmail, isValidPhone } from "./referral-rules.ts";
+import { campaignForZip, isSelfReferral, isValidEmail, isValidPhone } from "./referral-rules.ts";
 import { canonicalizeVehicle, isCatalogVehicleYear } from "./vehicle-catalog.ts";
 import { notifyReferrer } from "./referrer-notifications.ts";
 import { notifyReferee } from "./referee-notifications.ts";
@@ -84,6 +84,15 @@ export async function submitCustomerReferralAction(input: CustomerReferralInput)
     .where(and(eq(referrers.organizationId, organizationId), eq(referrers.code, input.referralCode)))
     .limit(1);
   if (!referrer) return { error: "This referral link is no longer valid." };
+
+  // A referrer must not be their own referred customer. This is reachable by
+  // accident, not just by fraud: every status email used to point "Track my
+  // referrals" at /r/<code>, so a referrer following their own email landed on
+  // the friend's form. Matched on email and on phone digits, since either
+  // identifies the same person.
+  if (isSelfReferral(referrer, { email, phone })) {
+    return { error: "This is your own referral link — share it with a friend instead. To book your own service, get a quote directly." };
+  }
 
   const campaignId = await getOrCreateCampaignId(organizationId, campaign.state);
   if (!campaignId) return { error: "We don't yet support service in this area." };

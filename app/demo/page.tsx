@@ -2,7 +2,9 @@ import Link from "next/link";
 import { PublicHeader, BrandWordmark, GENERIC_REFERRAL_CODE } from "../components/brand";
 
 export const metadata = {
-  title: "Demo Tour | NuVision Referrals",
+  // The root layout appends "| NuVision Referrals" via its title template —
+  // repeating it here produced "Demo Tour | NuVision Referrals | NuVision Referrals".
+  title: "Demo Tour",
   description: "A guided, clickable walkthrough of every NuVision referral platform surface.",
 };
 

@@ -43,3 +43,27 @@ test("pre-installation emails never claim a reward is ready or paid", () => {
     assert.doesNotMatch(copy, /you('ve| have) earned/i, `${event} claims the reward is earned`);
   }
 });
+
+// Cutover audit: the reward was just "$50" everywhere. Naming the payout method
+// is the most-asked support question, and Florida is voucher-only.
+test("reward emails name the payout method, and Florida is voucher-only", () => {
+  const az = campaignForZip("85001");
+  const fl = campaignForZip("33101");
+  assert.ok(az && fl);
+  const azEarned = emailTemplate("reward_earned", "Sandeep", az);
+  const flEarned = emailTemplate("reward_earned", "Sandeep", fl);
+  assert.match(azEarned.body, /Amazon/);
+  assert.match(azEarned.body, /bank|ACH|PayPal|Venmo/);
+  assert.match(flEarned.body, /voucher/);
+  // Florida has no bank-transfer option — promising one would be a payout
+  // dispute waiting to happen.
+  assert.doesNotMatch(flEarned.body, /ACH|PayPal|Venmo|straight to your bank/);
+});
+
+// The eligibility rule the old Referral Factory page carried and this one lost.
+test("the welcome email states that the friend must book through the link", () => {
+  const campaign = campaignForZip("85001");
+  assert.ok(campaign);
+  const welcome = emailTemplate("referrer_welcome", "Sandeep", campaign);
+  assert.match(welcome.body, /through your link/i);
+});

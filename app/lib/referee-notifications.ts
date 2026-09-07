@@ -14,13 +14,24 @@ async function resolveTrackerUrl(organizationId: string, trackPath: string): Pro
   return `https://${domain}${trackPath}`;
 }
 
+// "sans-serif" alone is not a font stack — a bare generic family resolves
+// unpredictably in some clients, which is how this heading ended up rendering
+// in monospace. Name real faces, and set the family on every element rather
+// than relying on inheritance, which several clients strip.
+const EMAIL_FONT = "Arial, Helvetica, sans-serif";
+
 function refereeConfirmationEmailHtml(firstName: string, referrerName: string, campaign: StateCampaign, trackUrl: string): string {
-  const offer = campaign.customerOffer ? `<p style="font-size:15px;line-height:1.5;color:#1e293b">Your referral benefit: ${campaign.customerOffer}</p>` : "";
-  return `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-    <h1 style="font-size:22px;color:#00568c">Thanks for your request, ${firstName}!</h1>
-    <p style="font-size:15px;line-height:1.5;color:#1e293b">NuVision has received your ${campaign.stateName} windshield service request through ${referrerName}'s referral. A specialist will reach out shortly to schedule your appointment.</p>
+  const offer = campaign.customerOffer ? `<p style="font-family:${EMAIL_FONT};font-size:15px;line-height:1.5;color:#1e293b">Your referral benefit: ${campaign.customerOffer}</p>` : "";
+  return `<div style="font-family:${EMAIL_FONT};max-width:480px;margin:0 auto">
+    <h1 style="font-family:${EMAIL_FONT};font-size:22px;color:#00568c">Thanks for your request, ${firstName}!</h1>
+    <p style="font-family:${EMAIL_FONT};font-size:15px;line-height:1.5;color:#1e293b">NuVision has received your ${campaign.stateName} windshield service request through ${referrerName}'s referral. A specialist will reach out shortly to schedule your appointment.</p>
     ${offer}
-    <a href="${trackUrl}" style="display:inline-block;margin-top:16px;padding:12px 22px;background:#00568c;color:#fff;text-decoration:none;border-radius:8px;font-weight:700">Track your service</a>
+    <a href="${trackUrl}" style="display:inline-block;margin-top:16px;padding:12px 22px;background:#00568c;color:#fff;text-decoration:none;border-radius:8px;font-family:${EMAIL_FONT};font-weight:700">Track your service</a>
+    <div style="margin-top:28px;padding-top:16px;border-top:1px solid #e2e8f0;font-family:${EMAIL_FONT};font-size:12px;line-height:1.5;color:#64748b">
+      <img src="https://referrals.nuvisionautoglass.com/nuvision-wordmark-color.png" alt="NuVision Auto Glass" width="120" style="display:block;margin-bottom:10px" />
+      <p style="margin:0 0 6px">NuVision Auto Glass &middot; Call 1855-213-0100</p>
+      <p style="margin:0">You are receiving this because a friend referred you for auto glass service.</p>
+    </div>
   </div>`;
 }
 

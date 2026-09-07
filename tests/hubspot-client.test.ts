@@ -31,17 +31,48 @@ test("createContact posts the form fields and returns the new contact id", async
     capturedBody = init.body as string;
     return new Response(JSON.stringify({ id: "contact-2" }), { status: 201 });
   });
-  const id = await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "Referral", secondaryLeadSource: "Marketing", referralCode: "NV-SJ-9012" });
+  const id = await createContact({
+    firstName: "Jane",
+    lastName: "Doe",
+    email: "jane@example.com",
+    phone: "6025550001",
+    leadSource: "In-House Referral",
+    secondaryLeadSource: "Marketing",
+    referralCode: "NV-SJ-9012",
+    referredByName: "Sam Jones",
+    referredByEmail: "sam@example.com",
+    referredByPhone: "6025550099",
+  });
   assert.equal(id, "contact-2");
+  // "leadsource" — NOT "lead_source__c", which exists on neither object and
+  // rejected the whole create. Referrer attribution lives on the contact
+  // because those four properties don't exist on deals.
   assert.deepEqual(JSON.parse(capturedBody).properties, {
     firstname: "Jane",
     lastname: "Doe",
     email: "jane@example.com",
     phone: "6025550001",
-    incoming_lead_source__c: "Referral",
-    lead_source__c: "Marketing",
+    incoming_lead_source__c: "In-House Referral",
+    leadsource: "Marketing",
     referral_code__c: "NV-SJ-9012",
+    referralcode: "NV-SJ-9012",
+    referred_by: "Sam Jones",
+    referral_email__c: "sam@example.com",
+    referral_phone__c: "6025550099",
   });
+});
+
+test("createContact omits referrer attribution when there is no referrer", async () => {
+  let capturedBody = "";
+  mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    capturedBody = init.body as string;
+    return new Response(JSON.stringify({ id: "contact-3" }), { status: 201 });
+  });
+  await createContact({ firstName: "Jane", lastName: "Doe", email: "jane@example.com", phone: "6025550001", leadSource: "In-House Referral", secondaryLeadSource: "Marketing", referralCode: "NV-SJ-9012" });
+  const properties = JSON.parse(capturedBody).properties;
+  assert.ok(!("referred_by" in properties));
+  assert.ok(!("referral_email__c" in properties));
+  assert.ok(!("referral_phone__c" in properties));
 });
 
 test("createContact recovers the existing contact id from a 409 conflict instead of throwing", async () => {
@@ -73,9 +104,6 @@ test("createDeal sends the pipeline, stage, lead source, referral attribution, c
     leadSource: "Referral",
     secondaryLeadSource: "Marketing",
     referralCode: "NV-SJ-9012",
-    referredByName: "Sam Jones",
-    referredByEmail: "sam@example.com",
-    referredByPhone: "6025550099",
     contactPhone: "6025550001",
     extraProperties: { install_state: "Arizona", install_zip: "85001", veh_make__c: "Toyota" },
     installNotes: "Insurance Provider: Acme Mutual",
@@ -85,12 +113,15 @@ test("createDeal sends the pipeline, stage, lead source, referral attribution, c
   assert.equal(body.properties.pipeline, "691581097");
   assert.equal(body.properties.dealstage, "1012021141");
   assert.equal(body.properties.incoming_lead_source__c, "Referral");
-  assert.equal(body.properties.lead_source__c, "Marketing");
+  // Deals call it "lead_source"; contacts call it "leadsource".
+  assert.equal(body.properties.lead_source, "Marketing");
   assert.equal(body.properties.referral_code__c, "NV-SJ-9012");
-  assert.equal(body.properties.referralcode, "NV-SJ-9012");
-  assert.equal(body.properties.referred_by, "Sam Jones");
-  assert.equal(body.properties.referral_email__c, "sam@example.com");
-  assert.equal(body.properties.referral_phone__c, "6025550099");
+  // These four exist on CONTACTS only — sending them here 400s the deal.
+  assert.ok(!("referralcode" in body.properties));
+  assert.ok(!("referred_by" in body.properties));
+  assert.ok(!("referral_email__c" in body.properties));
+  assert.ok(!("referral_phone__c" in body.properties));
+  assert.ok(!("lead_source__c" in body.properties));
   assert.equal(body.properties.contact_phone_1__c, "6025550001");
   assert.equal(body.properties.install_state, "Arizona");
   assert.equal(body.properties.install_zip, "85001");
@@ -115,9 +146,6 @@ test("createDeal associates the referrer's contact alongside the customer's when
     leadSource: "Referral",
     secondaryLeadSource: "Marketing",
     referralCode: "NV-SJ-9012",
-    referredByName: "Sam Jones",
-    referredByEmail: "sam@example.com",
-    referredByPhone: "6025550099",
     contactPhone: "6025550001",
   });
   const body = JSON.parse(capturedBody);
@@ -139,9 +167,6 @@ test("createDeal doesn't double-associate when the referrer and customer are the
     leadSource: "Referral",
     secondaryLeadSource: "Marketing",
     referralCode: "NV-SJ-9012",
-    referredByName: "Sam Jones",
-    referredByEmail: "sam@example.com",
-    referredByPhone: "6025550099",
     contactPhone: "6025550001",
   });
   const body = JSON.parse(capturedBody);

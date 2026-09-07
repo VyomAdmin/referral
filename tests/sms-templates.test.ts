@@ -41,3 +41,36 @@ test("referee confirmation SMS names the referrer, includes the tracking link be
   assert.ok(message.indexOf("Track it here") < message.indexOf("Reply STOP"), "tracking link should come before the opt-out line");
   assert.ok(message.length <= 320, `SMS body is ${message.length} chars, expected <=320 (2 segments)`);
 });
+
+// A welcome text with no link in it is useless — sharing by text is the point.
+test("the welcome SMS carries the referral link and the booking rule", () => {
+  const campaign = campaignForZip("85001");
+  assert.ok(campaign);
+  const body = smsTemplate("referrer_welcome", "Sandeep Jha", campaign, {
+    referralLink: "https://referrals.nuvisionautoglass.com/r/NV-SJ-9012",
+    trackerLink: "https://referrals.nuvisionautoglass.com/track",
+  });
+  assert.match(body, /r\/NV-SJ-9012/);
+  assert.match(body, /through your link/i);
+  assert.match(body, /Reply STOP to opt out\.$/);
+});
+
+// Status texts point at the tracker, never at the friend's referral form.
+test("status texts link the tracker, not the referral page", () => {
+  const campaign = campaignForZip("85001");
+  assert.ok(campaign);
+  const links = { referralLink: "https://x/r/NV-SJ-9012", trackerLink: "https://x/track" };
+  for (const event of ["referral_received", "appointment_scheduled", "installation_completed", "reward_earned"] as const) {
+    const body = smsTemplate(event, "Sandeep", campaign, links);
+    assert.match(body, /\/track/, `${event} should link the tracker`);
+    assert.doesNotMatch(body, /\/r\/NV-SJ-9012/, `${event} must not link the referral page`);
+  }
+});
+
+test("Florida reward SMS never promises a bank transfer", () => {
+  const fl = campaignForZip("33101");
+  assert.ok(fl);
+  const body = smsTemplate("reward_earned", "Sandeep", fl);
+  assert.match(body, /voucher/);
+  assert.doesNotMatch(body, /ACH|PayPal|Venmo|bank/);
+});

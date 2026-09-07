@@ -40,7 +40,20 @@ export async function getDealProperties(dealId: string, propertyNames: string[])
   return result.properties ?? {};
 }
 
-export type HubSpotContactInput = { firstName: string; lastName: string; email: string; phone: string; leadSource: string; secondaryLeadSource: string; referralCode: string };
+export type HubSpotContactInput = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  leadSource: string;
+  secondaryLeadSource: string;
+  referralCode: string;
+  // Referrer attribution. These four properties exist on CONTACTS only — sending
+  // them on a deal fails the whole create with PROPERTY_DOESNT_EXIST.
+  referredByName?: string;
+  referredByEmail?: string;
+  referredByPhone?: string;
+};
 
 export async function findContactByEmailOrPhone(email: string, phone: string): Promise<string | null> {
   const result = await hubSpotFetch("/crm/v3/objects/contacts/search", {
@@ -77,8 +90,18 @@ export async function createContact(input: HubSpotContactInput): Promise<string>
           email: input.email,
           phone: input.phone,
           incoming_lead_source__c: input.leadSource,
-          lead_source__c: input.secondaryLeadSource,
+          // Contacts call this "leadsource"; deals call it "lead_source".
+          // Neither is "lead_source__c" — that name doesn't exist on either
+          // object and rejected the entire create with PROPERTY_DOESNT_EXIST,
+          // silently only for people who weren't already in HubSpot.
+          leadsource: input.secondaryLeadSource,
           referral_code__c: input.referralCode,
+          // Legacy duplicate of referral_code__c still read by older reports
+          // and workflows in this portal.
+          referralcode: input.referralCode,
+          ...(input.referredByName ? { referred_by: input.referredByName } : {}),
+          ...(input.referredByEmail ? { referral_email__c: input.referredByEmail } : {}),
+          ...(input.referredByPhone ? { referral_phone__c: input.referredByPhone } : {}),
         },
       }),
     });
@@ -131,9 +154,6 @@ export type HubSpotDealInput = {
   leadSource: string;
   secondaryLeadSource: string;
   referralCode: string;
-  referredByName: string;
-  referredByEmail: string;
-  referredByPhone: string;
   contactPhone: string;
   // Already-resolved property values (see resolvePicklistValue) — e.g.
   // { install_state: "Arizona", veh_make__c: "Toyota" }.
@@ -157,15 +177,12 @@ export async function createDeal(input: HubSpotDealInput): Promise<{ id: string;
         pipeline: input.pipeline,
         dealstage: input.dealstage,
         incoming_lead_source__c: input.leadSource,
-        lead_source__c: input.secondaryLeadSource,
+        // Deals call this "lead_source" (contacts call it "leadsource").
+        lead_source: input.secondaryLeadSource,
         referral_code__c: input.referralCode,
-        // Legacy duplicate of referral_code__c still read by older reports/
-        // workflows in this HubSpot portal (per the cutover audit) — kept in
-        // sync so nothing downstream silently sees an empty value.
-        referralcode: input.referralCode,
-        referred_by: input.referredByName,
-        referral_email__c: input.referredByEmail,
-        referral_phone__c: input.referredByPhone,
+        // referralcode / referred_by / referral_email__c / referral_phone__c
+        // deliberately absent: those exist on CONTACTS only. They are set on
+        // the contact in createContact — sending them here 400s the deal.
         contact_phone_1__c: input.contactPhone,
         ...input.extraProperties,
         ...(input.installNotes ? { install_notes__c: input.installNotes } : {}),

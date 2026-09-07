@@ -27,7 +27,7 @@ export function emailTemplate(
       subject: `${firstName}, your NuVision referral link is ready`,
       preheader: `Earn $${campaign.referrerReward} for every completed installation you refer.`,
       heading: `Welcome, ${firstName}.`,
-      body: `Share your link with friends, family, or anyone who needs auto glass work in ${campaign.stateName}. You earn $${campaign.referrerReward} once a referred customer's installation is completed — not before. Track every referral's progress from your dashboard.`,
+      body: `Share your link with friends, family, or anyone who needs auto glass work in ${campaign.stateName}. You earn $${campaign.referrerReward} once a referred customer's installation is completed — not before, and only if they book through your link. You'll be paid ${campaign.rewardMethods}.`,
       buttonLabel: "View & share my link",
     },
     referral_received: {
@@ -55,7 +55,7 @@ export function emailTemplate(
       subject: `You earned a $${campaign.referrerReward} referral reward`,
       preheader: "The referred installation is complete and your reward is eligible.",
       heading: "Your referral was successful.",
-      body: `The installation you referred is complete, so your $${campaign.referrerReward} reward is approved and queued for payment — normally within 30 days. Thank you for the recommendation.`,
+      body: `The installation you referred is complete, so your $${campaign.referrerReward} reward is approved and queued for payment — normally within 30 days. You'll receive it ${campaign.rewardMethods}.`,
       buttonLabel: "Track my reward",
     },
     reward_paid: {
