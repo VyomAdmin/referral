@@ -23,9 +23,6 @@ export const TERMS_URL = `${NUVISION_HOME_URL}terms-conditions/`;
 // Factory campaign carried (cutover audit C-05).
 export const PROGRAM_TERMS_URL = "/terms";
 
-// The main site's quote form — where an out-of-area referral is sent, since
-// NuVision services more states than the referral bonus covers.
-export const NUVISION_QUOTE_URL = `${NUVISION_HOME_URL}get-a-quote/`;
 export const PRIVACY_URL = `${NUVISION_HOME_URL}privacy-policy/`;
 
 // Verified service claims carried over from the main site, shown alongside the

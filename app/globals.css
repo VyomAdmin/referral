@@ -716,7 +716,7 @@ form.settings-panel-card footer { display: flex; justify-content: flex-end; gap:
 /* R-10: insurance is optional here, matching the main site's quote form. */
 .field-optional { margin-left: 6px; color: var(--muted-2); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 
-/* Out-of-area ZIP is a lead, not a dead end. */
-.unsupported-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; }
-.unsupported-call { margin: 14px 0 0; color: var(--muted); font-size: 13px; }
-.unsupported-call a { color: var(--orange-light); font-weight: 700; }
+/* Out-of-area ZIP ends the interaction: recorded in the DB, never sent to
+   HubSpot, and the only action offered is fixing a mistyped ZIP. */
+.unsupported-retry { margin: 18px 0 0; color: var(--muted-2); font-size: 13px; }
+.unsupported-retry .text-button { font-size: 13px; }

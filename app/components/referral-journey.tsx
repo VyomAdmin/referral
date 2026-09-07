@@ -8,7 +8,7 @@ import { submitCustomerReferralAction } from "../lib/referral-actions";
 import { recordNonServiceableZipAction } from "../lib/service-area-actions";
 import { INSURANCE_PROVIDERS, isServiceableZipPrefix } from "../lib/service-area";
 import { pushGtmEvent } from "../lib/analytics";
-import { NUVISION_QUOTE_URL, PRIVACY_URL, PROGRAM_TERMS_URL, SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_HREF, TRUST_SIGNALS } from "./brand";
+import { PRIVACY_URL, PROGRAM_TERMS_URL, SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_HREF, TRUST_SIGNALS } from "./brand";
 
 type Lead = {
   name: string;
@@ -231,25 +231,22 @@ export function ReferralJourney({ code, referrerFirstName }: { code: string; ref
         ) : null}
 
         {unsupported ? (
-          /* Not a dead end. NuVision services four states but the referral
-             bonus only runs in two, so an out-of-area ZIP is still a real
-             customer who needs glass work — previously they got "we're not in
-             that area yet" and nowhere to go. Say plainly that the bonus isn't
-             available, then hand them the normal quote path. */
+          /* Deliberately a dead stop, not a funnel. The attempt is recorded in
+             non_serviceable_zip_attempts for coverage analysis and goes NO
+             further — nothing is sent to HubSpot, because an area we don't
+             serve isn't a lead and shouldn't land in a sales pipeline. The only
+             action offered is correcting a mistyped ZIP. */
           <div className="unsupported-state">
             <span className="state-icon">⌖</span>
-            <h2>The referral bonus isn&apos;t available in your area yet.</h2>
+            <h2>We&apos;re not serving this ZIP code yet.</h2>
             <p>
-              The referral program currently runs in Arizona and Florida, so we can&apos;t attach the $50 bonus to a
-              job at {zip}. NuVision may still be able to fit your glass — get a free quote and we&apos;ll tell you
-              straight away whether we cover you.
+              Thanks for thinking of NuVision. We don&apos;t currently offer service in {zip}, so there&apos;s nothing
+              further to do here. We&apos;ve made a note of your area — if we expand into it, the referral program
+              will cover it too.
             </p>
-            <div className="unsupported-actions">
-              <a className="button button-primary" href={NUVISION_QUOTE_URL}>Get a free quote</a>
-              <button className="button button-secondary" type="button" onClick={() => { setUnsupported(false); setZip(""); }}>Try another ZIP</button>
-            </div>
-            <p className="unsupported-call">
-              Or call <a href={SUPPORT_PHONE_HREF}>{SUPPORT_PHONE_DISPLAY}</a> and we&apos;ll check coverage for you.
+            <p className="unsupported-retry">
+              Entered the wrong ZIP?{" "}
+              <button className="text-button" type="button" onClick={() => { setUnsupported(false); setZip(""); }}>Try again</button>
             </p>
           </div>
         ) : null}
