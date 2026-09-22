@@ -31,7 +31,7 @@ run:
     # what it would delete; "execute" applies it. Remove this var and the
     # cleanup line in scripts/start.sh once the removal is confirmed.
     - name: CLEANUP_TEST_DATA
-      value: "dry-run"
+      value: "execute"
   secrets:
     - name: DATABASE_URL
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/DATABASE_URL-xwlrMa
