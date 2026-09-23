@@ -27,11 +27,6 @@ run:
       value: "referral@nuvisionautoglass.com"
     - name: BREVO_SENDER_NAME
       value: "NuVision Auto Glass"
-    # Temporary one-off cleanup of @example.com QA data. "dry-run" only reports
-    # what it would delete; "execute" applies it. Remove this var and the
-    # cleanup line in scripts/start.sh once the removal is confirmed.
-    - name: CLEANUP_TEST_DATA
-      value: "execute"
   secrets:
     - name: DATABASE_URL
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/DATABASE_URL-xwlrMa
