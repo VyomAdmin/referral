@@ -17,7 +17,7 @@
 // loud in the log instead. Nothing here is required for the app to work.
 
 import { Pool } from "pg";
-import { CleanupAbort, formatPlan, planCleanup, runCleanup, type SqlExecutor } from "../app/lib/test-data-cleanup.ts";
+import { CleanupAbort, EXAMPLE_COM, formatPlan, planCleanup, runCleanup, type MatchSpec, type SqlExecutor } from "../app/lib/test-data-cleanup.ts";
 
 const TAG = "[cleanup-test-data]";
 
@@ -29,6 +29,19 @@ function resolveMode(): "off" | "dry-run" | "execute" {
   if (env === "execute") return "execute";
   if (env === "dry-run") return "dry-run";
   return "off";
+}
+
+/**
+ * CLEANUP_MATCH_TERMS, comma-separated, switches from the safe @example.com
+ * match to free-text substring matching against names and emails. That mode can
+ * hit real people, so execute must never be reached on it without a human
+ * having read a dry-run first.
+ */
+function resolveSpec(): MatchSpec {
+  const raw = (process.env.CLEANUP_MATCH_TERMS ?? "").trim();
+  if (!raw) return EXAMPLE_COM;
+  const terms = raw.split(",").map((t) => t.trim()).filter(Boolean);
+  return terms.length > 0 ? { terms } : EXAMPLE_COM;
 }
 
 async function main() {
@@ -51,8 +64,9 @@ async function main() {
   };
 
   try {
-    const plan = await planCleanup(query);
-    console.log(`${TAG} mode=${mode}`);
+    const spec = resolveSpec();
+    const plan = await planCleanup(query, spec);
+    console.log(`${TAG} mode=${mode} match=${spec.terms ? `terms[${spec.terms.join("|")}]` : spec.emailSuffix}`);
     console.log(formatPlan(plan));
 
     if (plan.referrers.length === 0 && plan.referrals.length === 0) {
@@ -63,6 +77,24 @@ async function main() {
     if (mode === "dry-run") {
       console.log(`${TAG} DRY RUN — nothing was deleted. Set CLEANUP_TEST_DATA=execute to apply.`);
       return;
+    }
+
+    // Free-text terms can match real people, so executing on them takes a
+    // second, separate acknowledgement naming the exact terms. Getting here by
+    // flipping one env var would be too easy for something irreversible.
+    if (spec.terms) {
+      const expected = spec.terms.join(",");
+      const reviewed = (process.env.CLEANUP_TERMS_REVIEWED ?? "").trim();
+      if (reviewed !== expected) {
+        console.error(
+          `${TAG} REFUSING to execute term matching without review. ` +
+            `Set CLEANUP_TERMS_REVIEWED="${expected}" once a human has read the dry-run list above` +
+            (plan.collateralReferrals.length > 0
+              ? `, paying particular attention to the ${plan.collateralReferrals.length} collateral referral(s).`
+              : "."),
+        );
+        return;
+      }
     }
 
     const counts = await runCleanup(query, plan);

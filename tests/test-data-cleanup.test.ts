@@ -82,7 +82,8 @@ test("plan matches only @example.com rows, including a test customer under a rea
   assert.deepEqual(plan.referrals.map((r) => r.id).sort(), ["ref-mixed", "ref-test"]);
 
   const mixed = plan.referrals.find((r) => r.id === "ref-mixed")!;
-  assert.equal(mixed.reason, "test customer", "a test customer under a real referrer must still be removed");
+  assert.equal(mixed.reason, "direct", "its own customer email matches, so it is not collateral");
+  assert.deepEqual(plan.collateralReferrals, [], "@example.com matching produces no collateral here");
 
   // The real referral is nowhere in the plan.
   assert.ok(!plan.referrals.some((r) => r.id === "ref-real"));
@@ -155,7 +156,93 @@ test("an address merely containing example.com is not matched", async () => {
 });
 
 test("formatPlan renders an empty plan without crashing", async () => {
-  const text = formatPlan({ referrers: [], referrals: [] });
+  const text = formatPlan({ referrers: [], referrals: [], collateralReferrals: [] });
   assert.match(text, /Referrers matched \(0\)/);
   assert.match(text, /\(none\)/);
+});
+
+// --- free-text term matching (the risky mode) ---
+
+test("term matching finds names and emails, case-insensitively", async () => {
+  const db = await freshDb();
+  await seed(db);
+  const q = executor(db);
+
+  await q(`insert into referrers (id, organization_id, code, first_name, last_name, email, phone) values ('rer-sonu','org1','NV-SR-0010','Sonu','Rathor','sonu@nuvisionautoglass.com','6025550200')`);
+  await q(`insert into referrers (id, organization_id, code, first_name, last_name, email, phone) values ('rer-upper','org1','NV-UP-0011','SONU','RATHOR','SONU.RATHOR@nuvisionautoglass.com','6025550201')`);
+
+  const plan = await planCleanup(q, { terms: ["Sonu", "Rathor"] });
+  assert.deepEqual(plan.referrers.map((r) => r.id).sort(), ["rer-sonu", "rer-upper"]);
+  // The real referrer and the @example.com rows are untouched by this spec.
+  assert.ok(!plan.referrers.some((r) => r.id === "rer-real" || r.id === "rer-test"));
+  await db.close();
+});
+
+test("a referral that matches nothing itself is reported as collateral", async () => {
+  const db = await freshDb();
+  await seed(db);
+  const q = executor(db);
+
+  await q(`insert into referrers (id, organization_id, code, first_name, last_name, email, phone) values ('rer-sonu','org1','NV-SR-0010','Sonu','Rathor','sonu@nuvisionautoglass.com','6025550200')`);
+  // A completely ordinary customer referred by that referrer.
+  await q(`insert into referrals (id, organization_id, campaign_id, referrer_id, customer_first_name, customer_last_name, customer_email, customer_phone, zip, state, consent_given_at) values ('ref-genuine','org1','camp-az','rer-sonu','Maria','Gonzalez','maria.gonzalez@gmail.com','6025550202','85001','AZ', now())`);
+
+  const plan = await planCleanup(q, { terms: ["Sonu", "Rathor"] });
+
+  assert.deepEqual(plan.collateralReferrals.map((r) => r.id), ["ref-genuine"]);
+  assert.equal(plan.referrals.find((r) => r.id === "ref-genuine")!.reason, "cascade");
+  // And it must be impossible to miss in the printed report.
+  assert.match(formatPlan(plan), /match NOTHING themselves/);
+  assert.match(formatPlan(plan), /maria\.gonzalez@gmail\.com/);
+  await db.close();
+});
+
+test("'test' as a substring also matches innocent words — proving why review is required", async () => {
+  const db = await freshDb();
+  await seed(db);
+  const q = executor(db);
+
+  await q(`insert into referrers (id, organization_id, code, first_name, last_name, email, phone) values ('rer-testa','org1','NV-GT-0012','Giulia','Testa','giulia.testa@gmail.com','6025550203')`);
+  await q(`insert into referrers (id, organization_id, code, first_name, last_name, email, phone) values ('rer-contest','org1','NV-CW-0013','Carl','Winner','contest.winner@gmail.com','6025550204')`);
+
+  const plan = await planCleanup(q, { terms: ["test"] });
+  const matched = plan.referrers.map((r) => r.id);
+
+  assert.ok(matched.includes("rer-testa"), "surname Testa contains 'test'");
+  assert.ok(matched.includes("rer-contest"), "'contest' contains 'test'");
+  await db.close();
+});
+
+test("matchedOn explains which field triggered each match", async () => {
+  const db = await freshDb();
+  await seed(db);
+  const q = executor(db);
+  await q(`insert into referrers (id, organization_id, code, first_name, last_name, email, phone) values ('rer-sonu','org1','NV-SR-0010','Sonu','Rathor','sonu@nuvisionautoglass.com','6025550200')`);
+
+  const plan = await planCleanup(q, { terms: ["Sonu"] });
+  const sonu = plan.referrers.find((r) => r.id === "rer-sonu")!;
+  assert.deepEqual(sonu.matchedOn.sort(), ['email~"Sonu"', 'first~"Sonu"']);
+  await db.close();
+});
+
+test("LIKE wildcards in a term are matched literally, not as wildcards", async () => {
+  const db = await freshDb();
+  await seed(db);
+  const q = executor(db);
+
+  // If "%" were passed through unescaped this would match every referrer.
+  const plan = await planCleanup(q, { terms: ["%"] });
+  assert.deepEqual(plan.referrers, [], "a bare % must not match everything");
+  await db.close();
+});
+
+test("an empty term list matches nothing at all", async () => {
+  const db = await freshDb();
+  await seed(db);
+  const q = executor(db);
+
+  const plan = await planCleanup(q, { terms: ["", "   "] });
+  assert.deepEqual(plan.referrers, []);
+  assert.deepEqual(plan.referrals, []);
+  await db.close();
 });
