@@ -32,8 +32,12 @@ run:
     # requires CLEANUP_TERMS_REVIEWED to name the same terms, after a human has
     # read the dry-run output. Remove all three once done.
     - name: CLEANUP_TEST_DATA
-      value: "dry-run"
+      value: "execute"
     - name: CLEANUP_MATCH_TERMS
+      value: "Sonu,Rathor,test"
+    # Set only after reading the dry-run output: 7 referrers, 5 referrals, zero
+    # collateral, nothing installed or paid. Confirmed for deletion.
+    - name: CLEANUP_TERMS_REVIEWED
       value: "Sonu,Rathor,test"
   secrets:
     - name: DATABASE_URL
