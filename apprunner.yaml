@@ -27,18 +27,6 @@ run:
       value: "referral@nuvisionautoglass.com"
     - name: BREVO_SENDER_NAME
       value: "NuVision Auto Glass"
-    # Temporary QA-data cleanup. DRY-RUN ONLY: free-text terms can match real
-    # people, so this reports and deletes nothing. Executing additionally
-    # requires CLEANUP_TERMS_REVIEWED to name the same terms, after a human has
-    # read the dry-run output. Remove all three once done.
-    - name: CLEANUP_TEST_DATA
-      value: "execute"
-    - name: CLEANUP_MATCH_TERMS
-      value: "Sonu,Rathor,test"
-    # Set only after reading the dry-run output: 7 referrers, 5 referrals, zero
-    # collateral, nothing installed or paid. Confirmed for deletion.
-    - name: CLEANUP_TERMS_REVIEWED
-      value: "Sonu,Rathor,test"
   secrets:
     - name: DATABASE_URL
       value-from: arn:aws:secretsmanager:us-east-1:035722575731:secret:nuvision-referral/DATABASE_URL-xwlrMa
