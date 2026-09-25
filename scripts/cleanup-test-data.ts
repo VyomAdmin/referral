@@ -109,11 +109,21 @@ async function main() {
     if ((process.env.CLEANUP_REQUIRE_CLEAN ?? "").trim() === "1") {
       const advanced = plan.referrals.filter((r) => r.status === "installed" || r.status === "paid");
       const problems: string[] = [];
+      // Collateral is never waivable here. Approving the removal of a known
+      // test record says nothing about a genuine referral that happens to sit
+      // under the same referrer, and those are the rows with real customers.
       if (plan.collateralReferrals.length > 0) {
-        problems.push(`${plan.collateralReferrals.length} referral(s) match nothing themselves`);
+        problems.push(
+          `${plan.collateralReferrals.length} referral(s) match nothing themselves and would be lost with their referrer: ` +
+            plan.collateralReferrals.map((r) => `${r.id} (${r.customerEmail})`).join(", "),
+        );
       }
-      if (advanced.length > 0) {
+      // installed/paid IS waivable, but only by naming it separately — used
+      // when a specific advanced row has been confirmed as test data.
+      if (advanced.length > 0 && (process.env.CLEANUP_ALLOW_ADVANCED ?? "").trim() !== "1") {
         problems.push(`${advanced.length} referral(s) are installed/paid: ${advanced.map((r) => r.id).join(", ")}`);
+      } else if (advanced.length > 0) {
+        console.log(`${TAG} Allowing ${advanced.length} installed/paid referral(s) per CLEANUP_ALLOW_ADVANCED.`);
       }
       if (problems.length > 0) {
         console.error(`${TAG} NOT CLEAN — refusing to delete. ${problems.join("; ")}.`);

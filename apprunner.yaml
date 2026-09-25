@@ -34,10 +34,14 @@ run:
     - name: CLEANUP_TEST_DATA
       value: "execute"
     - name: CLEANUP_MATCH_TERMS
-      value: "Sep4,TwoSeven"
+      value: "Sep4,TwoSeven,example.com,wonka"
     - name: CLEANUP_TERMS_REVIEWED
-      value: "Sep4,TwoSeven"
+      value: "Sep4,TwoSeven,example.com,wonka"
+    # Collateral protection stays ON. ALLOW_ADVANCED waives only the
+    # installed/paid block, for the confirmed-test "Sep4 Last" record.
     - name: CLEANUP_REQUIRE_CLEAN
+      value: "1"
+    - name: CLEANUP_ALLOW_ADVANCED
       value: "1"
     - name: CLEANUP_INVENTORY
       value: "1"

@@ -258,3 +258,23 @@ test("listAll reports every remaining row with its creation date", async () => {
   assert.match(text, /\d{4}-\d{2}-\d{2}/, "creation dates are shown for identifying rows by date");
   await db.close();
 });
+
+test("'example.com' as a substring term catches -dup1 renamed addresses", async () => {
+  const db = await freshDb();
+  await seed(db);
+  const q = executor(db);
+
+  // Migration 0012 renamed duplicate emails, so they no longer END with
+  // @example.com and the end-anchored suffix match misses them entirely.
+  await q(`insert into referrers (id, organization_id, code, first_name, last_name, email, phone) values ('rer-dup','org1','NV-MA-7716','Maria','Alpha','maria.alpha.e2e@example.com-dup1','6025550300')`);
+  // A real internal address renamed the same way must NOT be caught.
+  await q(`insert into referrers (id, organization_id, code, first_name, last_name, email, phone) values ('rer-updesh','org1','NV-US-5348','Updesh','Singh','updesh@nuvisionautoglass.com-dup1','6025550301')`);
+
+  const suffix = await planCleanup(q, { emailSuffix: "@example.com" });
+  assert.ok(!suffix.referrers.some((r) => r.id === "rer-dup"), "suffix match misses the renamed row");
+
+  const substring = await planCleanup(q, { terms: ["example.com"] });
+  assert.ok(substring.referrers.some((r) => r.id === "rer-dup"), "substring match catches it");
+  assert.ok(!substring.referrers.some((r) => r.id === "rer-updesh"), "a real -dup1 address must survive");
+  await db.close();
+});
