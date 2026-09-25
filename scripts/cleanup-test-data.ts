@@ -17,7 +17,7 @@
 // loud in the log instead. Nothing here is required for the app to work.
 
 import { Pool } from "pg";
-import { CleanupAbort, EXAMPLE_COM, formatPlan, planCleanup, runCleanup, type MatchSpec, type SqlExecutor } from "../app/lib/test-data-cleanup.ts";
+import { CleanupAbort, EXAMPLE_COM, formatPlan, listAll, planCleanup, runCleanup, type MatchSpec, type SqlExecutor } from "../app/lib/test-data-cleanup.ts";
 
 const TAG = "[cleanup-test-data]";
 
@@ -64,6 +64,10 @@ async function main() {
   };
 
   try {
+    if ((process.env.CLEANUP_INVENTORY ?? "").trim() === "1") {
+      console.log(`${TAG} inventory BEFORE:`);
+      console.log(await listAll(query));
+    }
     const spec = resolveSpec();
     const plan = await planCleanup(query, spec);
     console.log(`${TAG} mode=${mode} match=${spec.terms ? `terms[${spec.terms.join("|")}]` : spec.emailSuffix}`);
@@ -95,6 +99,28 @@ async function main() {
         );
         return;
       }
+    }
+
+    // CLEANUP_REQUIRE_CLEAN turns "only delete if it looks safe" into a
+    // machine-checked precondition instead of a judgement someone has to
+    // remember to make. Unsafe means either: a referral being removed only
+    // because its referrer matched (most likely to be real), or a referral far
+    // enough along to carry a reward obligation.
+    if ((process.env.CLEANUP_REQUIRE_CLEAN ?? "").trim() === "1") {
+      const advanced = plan.referrals.filter((r) => r.status === "installed" || r.status === "paid");
+      const problems: string[] = [];
+      if (plan.collateralReferrals.length > 0) {
+        problems.push(`${plan.collateralReferrals.length} referral(s) match nothing themselves`);
+      }
+      if (advanced.length > 0) {
+        problems.push(`${advanced.length} referral(s) are installed/paid: ${advanced.map((r) => r.id).join(", ")}`);
+      }
+      if (problems.length > 0) {
+        console.error(`${TAG} NOT CLEAN — refusing to delete. ${problems.join("; ")}.`);
+        console.error(`${TAG} Nothing was deleted. Review the list above and decide explicitly.`);
+        return;
+      }
+      console.log(`${TAG} Clean check passed: no collateral, nothing installed or paid.`);
     }
 
     const counts = await runCleanup(query, plan);

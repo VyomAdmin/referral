@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { CleanupAbort, formatPlan, planCleanup, runCleanup, type SqlExecutor } from "../app/lib/test-data-cleanup.ts";
+import { CleanupAbort, formatPlan, listAll, planCleanup, runCleanup, type SqlExecutor } from "../app/lib/test-data-cleanup.ts";
 
 // This script deletes production rows. The only acceptable evidence that its
 // match pattern is right is a real Postgres engine with real foreign keys,
@@ -244,5 +244,17 @@ test("an empty term list matches nothing at all", async () => {
   const plan = await planCleanup(q, { terms: ["", "   "] });
   assert.deepEqual(plan.referrers, []);
   assert.deepEqual(plan.referrals, []);
+  await db.close();
+});
+
+test("listAll reports every remaining row with its creation date", async () => {
+  const db = await freshDb();
+  await seed(db);
+
+  const text = await listAll(executor(db));
+  assert.match(text, /ALL referrers \(2\)/);
+  assert.match(text, /ALL referrals \(3\)/);
+  assert.match(text, /real@nuvisionautoglass\.com/);
+  assert.match(text, /\d{4}-\d{2}-\d{2}/, "creation dates are shown for identifying rows by date");
   await db.close();
 });

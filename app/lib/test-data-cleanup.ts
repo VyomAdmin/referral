@@ -112,6 +112,45 @@ function whyMatched(row: Record<string, unknown>, fields: [string, string][], sp
 
 export class CleanupAbort extends Error {}
 
+/**
+ * Every remaining referrer and referral, with creation dates. Read-only.
+ *
+ * Exists because the production database is only reachable from inside the
+ * VPC, so there is otherwise no way to see what a proposed match term would
+ * be chosen from. Used to identify rows by eye before committing to a pattern.
+ */
+export async function listAll(query: SqlExecutor): Promise<string> {
+  const referrers = await query(
+    `select code, email, first_name, last_name, created_at
+       from referrers order by created_at`, []);
+  const referrals = await query(
+    `select id, customer_email, customer_first_name, customer_last_name,
+            public_status, created_at
+       from referrals order by created_at`, []);
+
+  // Both pg and PGlite hand back Date objects for timestamptz, and
+  // String(date) renders "Fri Sep 25 ..." — useless for identifying a row by
+  // date. Normalise to ISO yyyy-mm-dd.
+  const day = (value: unknown) => {
+    if (!value) return "----------";
+    const date = value instanceof Date ? value : new Date(String(value));
+    return Number.isNaN(date.getTime()) ? String(value).slice(0, 10) : date.toISOString().slice(0, 10);
+  };
+  const lines: string[] = [];
+
+  lines.push(`ALL referrers (${referrers.rows.length}):`);
+  for (const r of referrers.rows) {
+    const name = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
+    lines.push(`  ${day(r.created_at)}  ${String(r.code).padEnd(14)} ${String(r.email).padEnd(38)} ${name}`);
+  }
+  lines.push(`ALL referrals (${referrals.rows.length}):`);
+  for (const r of referrals.rows) {
+    const name = `${r.customer_first_name ?? ""} ${r.customer_last_name ?? ""}`.trim();
+    lines.push(`  ${day(r.created_at)}  ${r.id}  ${String(r.customer_email).padEnd(38)} ${name.padEnd(24)} ${r.public_status}`);
+  }
+  return lines.join("\n");
+}
+
 /** Enumerate exactly what would be deleted. Reads only — safe to run anywhere. */
 export async function planCleanup(query: SqlExecutor, spec: MatchSpec = EXAMPLE_COM): Promise<CleanupPlan> {
   const referrerParams: unknown[] = [];
