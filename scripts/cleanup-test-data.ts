@@ -130,7 +130,10 @@ async function main() {
         console.error(`${TAG} Nothing was deleted. Review the list above and decide explicitly.`);
         return;
       }
-      console.log(`${TAG} Clean check passed: no collateral, nothing installed or paid.`);
+      console.log(
+        `${TAG} Clean check passed: no collateral` +
+          (advanced.length > 0 ? ` (${advanced.length} installed/paid allowed explicitly).` : ", nothing installed or paid."),
+      );
     }
 
     const counts = await runCleanup(query, plan);
