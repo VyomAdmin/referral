@@ -1,57 +1,33 @@
 {
-  "name": "site-creator-vinext-starter",
-  "version": "0.1.0",
+  "name": "referral",
+  "version": "0.2.0",
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "vinext dev",
-    "build": "vinext build",
-    "start": "vinext start",
-    "test": "npm run build && node --experimental-strip-types --test tests/*.test.ts tests/*.test.mjs",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "cleanup:test-data": "node --experimental-strip-types scripts/cleanup-test-data.ts",
-    "verify:hubspot-picklists": "node scripts/verify-hubspot-picklists.mjs"
+    "dev:api": "node --experimental-strip-types server/local.ts",
+    "dev:web": "vite",
+    "dev": "npm run dev:web",
+    "build": "vite build && npm run build --prefix functions",
+    "test": "node --experimental-strip-types --test tests/referral-flow.test.ts && npx --yes firebase-tools@14.27.0 emulators:exec --only firestore --project demo-referral \"node --experimental-strip-types --test tests/firestore-rules.test.ts\"",
+    "lint": "eslint .",
+    "import:coverage": "node --experimental-strip-types scripts/import-coverage.ts"
   },
   "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "drizzle-orm": "0.45.2",
-    "next-auth": "^5.0.0-beta.32",
-    "nodemailer": "^8.0.11",
-    "otplib": "^13.4.1",
-    "pg": "^8.13.1",
-    "qrcode": "^1.5.4",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "vinext": "1.0.0-beta.2"
+    "firebase": "^11.9.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.8",
-    "@eslint/js": "9.39.4",
-    "@next/eslint-plugin-next": "16.2.6",
-    "@tailwindcss/postcss": "4.2.1",
-    "@types/node": "22.19.19",
-    "@types/nodemailer": "^8.0.1",
-    "@types/pg": "^8.11.10",
-    "@types/qrcode": "^1.5.6",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.26",
-    "drizzle-kit": "0.31.10",
-    "eslint": "9.39.4",
-    "eslint-plugin-jsx-a11y": "6.10.2",
-    "eslint-plugin-react": "7.37.5",
-    "eslint-plugin-react-hooks": "7.1.1",
-    "globals": "16.4.0",
-    "react-server-dom-webpack": "19.2.6",
-    "tailwindcss": "4.2.1",
-    "typescript": "5.9.3",
-    "typescript-eslint": "8.59.3",
-    "vite": "8.0.13"
-  },
-  "type": "module"
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.2",
+    "eslint": "^9.35.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.0",
+    "vite": "^7.1.5"
+  }
 }
