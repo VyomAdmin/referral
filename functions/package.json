@@ -1,0 +1,17 @@
+{
+  "name": "referral-functions",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "engines": { "node": "22" },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=lib/index.js --external:firebase-admin --external:firebase-functions --format=esm"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0",
+    "firebase-functions": "^6.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.9"
+  }
+}

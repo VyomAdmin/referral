@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function staffData() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data;
+    }
+    function isStaff() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+        && staffData().role in ["Admin", "Marketing", "Ops"]
+        && staffData().status == "active";
+    }
+    function isAdmin() {
+      return isStaff() && staffData().role == "Admin";
+    }
+    function isOpsOrAdmin() {
+      return isStaff() && staffData().role in ["Admin", "Ops"];
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /referrers/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+    match /referrals/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+    match /rewards/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+    match /coverage/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+    match /uncoveredZips/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+    match /campaign/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+    match /staff/{id} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == id);
+      allow write: if false;
+    }
+    match /auditEvents/{id} {
+      allow read: if isOpsOrAdmin();
+      allow create, update, delete: if false;
+    }
+    match /messageEvents/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+    match /reconciliationReports/{id} {
+      allow read: if isOpsOrAdmin();
+      allow write: if false;
+    }
+    match /webhookEvents/{id} {
+      allow read, write: if false;
+    }
+    match /rateLimits/{id} {
+      allow read, write: if false;
+    }
+  }
+}

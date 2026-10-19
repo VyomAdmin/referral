@@ -1,41 +1,13 @@
-# Test Mode Handoff
+# Local test mode
 
-This workspace is intentionally configured as a test build for NuVision's internal product and development teams.
+The public forms and the staff actions run in Cloud Functions. Tests call those functions with an in-memory store and a mock CRM. They do not open a network connection to GoHighLevel, and they do not write to a hosted database.
 
-## Safe test behavior
+`tests/referral-flow.test.ts` covers signup, a quote, a signed stage webhook, an eligible reward, and a staff member marking that reward paid.
 
-- Referrer registrations and referred-customer submissions remain on the current device for previewing the complete journey.
-- Dashboard, trackers, email activity, analytics, and rewards use seeded demonstration records.
-- Reward actions update only in the browser and do not send money.
-- Email events are previews only; no transactional email provider is connected.
-- HubSpot mappings, signature validation, idempotency, and the webhook storage boundary are implemented, but the webhook endpoint remains unavailable until a HubSpot client secret is configured.
-- The UI displays a persistent Test mode notice.
+`tests/firestore-rules.test.ts` loads `firestore.rules` in the Local Emulator Suite. Client writes are denied. Staff reads of program data are allowed.
 
-## Recommended internal QA accounts and URLs
+`npm run dev:api` starts `server/local.ts` for browser checks. Set `LOCAL_ADMIN_EMAIL` and `LOCAL_ADMIN_PASSWORD` in the environment if you need the staff portal. The process keeps that password in memory. It is not a Firebase user and it is not written to Firestore.
 
-- Referrer registration: `/`
-- Referred customer flow: `/r/NV-NUVISION`
-- Arizona test ZIP with offer: `85001`
-- Florida test ZIP without offer: `33101`
-- Referrer tracker: `/track/referrer/demo`
-- Customer tracker: `/track/customer/demo`
-- Expired-link state: `/track/customer/expired`
-- Internal operations: `/admin`
+`LOCAL_COVERAGE` can seed the in-memory coverage list for that process only. Leave it unset to see the uncovered-ZIP path. `LOCAL_MOCK_CRM=true` swaps in an in-process CRM double so a browser check can finish a referral without a network call. Do not put real customer data in this server.
 
-## Before production deployment
-
-1. Choose and configure production authentication for internal users and passwordless customer tracking.
-2. Connect HubSpot using OAuth or a NuVision private app and configure the installation-completed property.
-3. Connect a transactional email provider and verify the NuVision sending domain with SPF, DKIM, and DMARC.
-4. Replace browser-only form submission with the supplied D1 schema and server APIs.
-5. Configure reward processing or retain an audited manual payout workflow.
-6. Replace seeded records with tenant-scoped database queries.
-7. Confirm state offer copy, legal terms, supported ZIP coverage, retention rules, and privacy requirements.
-8. Run `npm test` and `npm run lint`, then deploy through the internal release process.
-
-## Current validation
-
-- 19 automated and server-rendered tests pass.
-- Accessibility and code-quality linting passes.
-- Production build passes.
-- Database migration for 10 tables is generated and checked in.
+There is no seeded production dataset in this repo.

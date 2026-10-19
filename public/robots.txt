@@ -1,5 +1,0 @@
-User-agent: *
-Disallow: /admin
-Disallow: /demo
-Disallow: /track
-Disallow: /r/
